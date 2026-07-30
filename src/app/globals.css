@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+:root {
+  /* United Group of Institutions brand */
+  --brand: #334d93;
+  --brand-deep: #243771;
+  --brand-soft: #d9e1f5;
+  --brand-mist: #eef2fa;
+  --accent: #d62027;
+  --accent-soft: #fde8e9;
+  --ink: #1a2440;
+  --ink-soft: #3d4a6b;
+  --muted: #6b7690;
+  --paper: #f5f7fb;
+  --line: rgba(51, 77, 147, 0.14);
+  --danger: #d62027;
+  --ok: #067647;
+  --warn: #b54708;
+  --info: #334d93;
+  --shadow: 0 18px 50px rgba(36, 55, 113, 0.1);
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-mist: var(--brand-mist);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-paper: var(--paper);
+  --color-line: var(--line);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-info: var(--info);
+  --font-sans: var(--font-sora);
+  --font-display: var(--font-fraunces);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 600px at 8% -10%, #d9e1f5 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, #fde8e9 0%, transparent 48%),
+    linear-gradient(180deg, #eef2fa 0%, #f8f9fc 42%, #eef2fa 100%);
+  min-height: 100vh;
+}
+
+.bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(42px);
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-orb-a {
+  width: 320px;
+  height: 320px;
+  background: #a8b8e0;
+  top: 12%;
+  left: -80px;
+  animation: floaty 12s ease-in-out infinite;
+}
+
+.bg-orb-b {
+  width: 260px;
+  height: 260px;
+  background: #f0a8ab;
+  bottom: 8%;
+  right: -60px;
+  animation: floaty 14s ease-in-out infinite reverse;
+}
+
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(22px);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: rise 0.55s ease both;
+}
