@@ -1,33 +1,40 @@
-import { auth } from "@/auth";
-import { bulkImportStudents } from "@/lib/features/actions";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/map/session";
 import { adminNav } from "@/lib/nav";
-import { btnPrimary, Card, Field, inputClass, PageHead, Shell } from "@/components/ui";
+import { BulkImportForm } from "@/components/admin-user-forms";
+import { Card, PageHead, Shell } from "@/components/ui";
 
 export default async function AdminImportPage() {
-  const session = await auth();
+  const session = await requireRole("admin");
+  const batches = await prisma.batch.findMany({ orderBy: { endYear: "desc" } });
 
   return (
-    <Shell nav={adminNav("import")} user={session!.user}>
-      <PageHead title="Bulk onboarding" subtitle="CSV import for students (password defaults to password123)." />
-      <Card title="Import students CSV">
-        <p className="text-sm text-muted">
-          Header required:{" "}
-          <code>studentId,username,fullName,email,department,enrollmentNo,groupCode,isLeader</code>
+    <Shell nav={adminNav("import")} user={session.user}>
+      <PageHead
+        title="Bulk import students"
+        subtitle="Upload or paste a CSV of AKTU rolls to register an entire batch."
+        actions={
+          <Link
+            href="/admin/students"
+            className="rounded-xl border border-line bg-white px-4 py-3 text-sm font-semibold text-brand-deep no-underline"
+          >
+            Single student form
+          </Link>
+        }
+      />
+
+      <Card title="CSV import">
+        <p className="mt-0 text-sm text-muted">
+          Columns: <code>uniqueId,fullName,email,phone</code>. Header row optional. Invalid rolls and
+          duplicates are skipped. New accounts get the default password below and must complete
+          biodata on first login.
         </p>
-        <form action={bulkImportStudents} className="mt-4">
-          <Field label="CSV content">
-            <textarea
-              className={inputClass}
-              name="csv"
-              rows={12}
-              defaultValue={`studentId,username,fullName,email,department,enrollmentNo,groupCode,isLeader
-STU100,stu_new1,New Student,new@student.uit.edu,Computer Science,ENR21100,GRP-2026-003,0`}
-            />
-          </Field>
-          <button className={btnPrimary} type="submit">
-            Import students
-          </button>
-        </form>
+        {batches.length ? (
+          <BulkImportForm batches={batches.map((b) => ({ id: b.id, label: b.label }))} />
+        ) : (
+          <p className="mb-0 text-sm text-danger">Create a batch before importing students.</p>
+        )}
       </Card>
     </Shell>
   );

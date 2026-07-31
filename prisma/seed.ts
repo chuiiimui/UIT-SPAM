@@ -1,423 +1,249 @@
-import { PrismaClient } from "@prisma/client";
+import "dotenv/config";
 import bcrypt from "bcryptjs";
+import { PrismaClient } from "@prisma/client";
+import { RUBRIC_CODES } from "../src/lib/map/rubrics";
 
 const prisma = new PrismaClient();
 
+const FIRST = [
+  "Aarav", "Vivaan", "Aditya", "Vihaan", "Arjun", "Sai", "Reyansh", "Ayaan", "Krishna", "Ishaan",
+  "Shaurya", "Atharv", "Advait", "Pranav", "Madhav", "Kabir", "Ansh", "Rudra", "Yash", "Dev",
+  "Diya", "Ananya", "Aadhya", "Pari", "Anika", "Myra", "Sara", "Aarohi", "Anvi", "Kiara",
+  "Saanvi", "Navya", "Ira", "Mishka", "Prisha", "Riya", "Isha", "Meera", "Neha", "Kavya",
+  "Rohan", "Kunal", "Harsh", "Nikhil", "Rahul", "Aman", "Varun", "Siddharth", "Manav", "Tushar",
+  "Pooja", "Shreya", "Tanvi", "Nisha", "Pallavi", "Sneha", "Aditi", "Sakshi", "Priya", "Simran",
+];
+
+const LAST = [
+  "Sharma", "Verma", "Singh", "Gupta", "Patel", "Mishra", "Yadav", "Joshi", "Kapoor", "Agarwal",
+  "Pandey", "Tiwari", "Srivastava", "Chauhan", "Rathore", "Malhotra", "Bansal", "Saxena", "Dubey", "Nair",
+  "Reddy", "Iyer", "Khan", "Ali", "Das", "Roy", "Ghosh", "Bhatt", "Mehta", "Jain",
+];
+
+const FACULTY_TITLES = ["Dr.", "Mr.", "Mrs.", "Ms.", "Prof."] as const;
+const DEPARTMENTS = ["CSE", "CSE", "CSE", "IT", "ECE", "CSE", "AI/ML", "CSE"] as const;
+const BRANCHES = ["CSE", "CSE", "IT", "AI/ML", "CSE"] as const;
+const SECTIONS = ["A", "B", "C", "D"] as const;
+
+function pick<T>(arr: readonly T[], i: number): T {
+  return arr[i % arr.length];
+}
+
+function studentName(i: number) {
+  return `${pick(FIRST, i)} ${pick(LAST, i * 3 + 1)}`;
+}
+
+function facultyName(i: number) {
+  const title = pick(FACULTY_TITLES, i);
+  return `${title} ${pick(FIRST, i + 11)} ${pick(LAST, i * 2 + 5)}`;
+}
+
+function phoneFor(i: number) {
+  return `98${String(70000000 + i).padStart(8, "0")}`;
+}
+
 async function main() {
-  await prisma.activityLog.deleteMany();
-  await prisma.comment.deleteMany();
-  await prisma.assessment.deleteMany();
-  await prisma.progressUpdate.deleteMany();
-  await prisma.project.deleteMany();
+  await prisma.rubricStudentMark.deleteMany();
+  await prisma.rubricGroupStatus.deleteMany();
+  await prisma.rubricDeadline.deleteMany();
+  await prisma.weeklyEntry.deleteMany();
+  await prisma.groupInvite.deleteMany();
   await prisma.groupMentor.deleteMany();
   await prisma.student.deleteMany();
   await prisma.projectGroup.deleteMany();
   await prisma.faculty.deleteMany();
   await prisma.admin.deleteMany();
+  await prisma.batch.deleteMany();
+  await prisma.activityLog.deleteMany();
 
   const passwordHash = await bcrypt.hash("password123", 10);
 
-  const admin = await prisma.admin.create({
+  const batch = await prisma.batch.create({
+    data: { label: "2023-2027", endYear: 2027, isActive: true },
+  });
+
+  const batchOld = await prisma.batch.create({
+    data: { label: "2021-2025", endYear: 2025, isActive: true },
+  });
+
+  const now = Date.now();
+  for (let i = 0; i < RUBRIC_CODES.length; i++) {
+    await prisma.rubricDeadline.create({
+      data: {
+        batchId: batch.id,
+        rubricCode: RUBRIC_CODES[i],
+        dueAt: new Date(now + (i + 1) * 14 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  await prisma.admin.create({
     data: {
-      username: "principal",
+      uniqueId: "testadmin",
+      passwordHash: await bcrypt.hash("123456", 10),
+      fullName: "Campus Principal",
+      email: "principal@uit.ac.in",
+    },
+  });
+
+  await prisma.admin.create({
+    data: {
+      uniqueId: "principal",
       passwordHash,
-      fullName: "Dr. Asha Mehra",
-      email: "principal@uit.edu",
+      fullName: "Demo Principal",
+      email: "demo.principal@uit.ac.in",
     },
   });
 
-  const [f1, f2, f3] = await Promise.all([
-    prisma.faculty.create({
-      data: {
-        facultyId: "FAC001",
-        username: "faculty1",
-        passwordHash,
-        fullName: "Prof. Rajesh Kumar",
-        email: "rajesh@uit.edu",
-        department: "Computer Science",
-        designation: "Associate Professor",
-      },
-    }),
-    prisma.faculty.create({
-      data: {
-        facultyId: "FAC002",
-        username: "faculty2",
-        passwordHash,
-        fullName: "Prof. Priya Sharma",
-        email: "priya@uit.edu",
-        department: "Information Technology",
-        designation: "Assistant Professor",
-      },
-    }),
-    prisma.faculty.create({
-      data: {
-        facultyId: "FAC003",
-        username: "faculty3",
-        passwordHash,
-        fullName: "Prof. Amit Verma",
-        email: "amit@uit.edu",
-        department: "Computer Science",
-        designation: "Professor",
-      },
-    }),
-  ]);
-
-  const [g1, g2, g3] = await Promise.all([
-    prisma.projectGroup.create({
-      data: {
-        groupCode: "GRP-2026-001",
-        groupName: "CodeCrafters",
-        academicYear: "2025-26",
-        semester: "VIII",
-        department: "Computer Science",
-        status: "active",
-        isTemporary: false,
-      },
-    }),
-    prisma.projectGroup.create({
-      data: {
-        groupCode: "GRP-2026-002",
-        groupName: "DataNest",
-        academicYear: "2025-26",
-        semester: "VIII",
-        department: "Information Technology",
-        status: "active",
-        isTemporary: false,
-      },
-    }),
-    prisma.projectGroup.create({
-      data: {
-        groupCode: "GRP-2026-003",
-        groupName: "NovaLabs",
-        academicYear: "2025-26",
-        semester: "VIII",
-        department: "Computer Science",
-        status: "pending",
-        isTemporary: true,
-      },
-    }),
-  ]);
-
-  const students = await Promise.all([
-    prisma.student.create({
-      data: {
-        studentId: "STU001",
-        username: "stu_lead1",
-        passwordHash,
-        fullName: "Ananya Gupta",
-        email: "ananya@student.uit.edu",
-        department: "Computer Science",
-        enrollmentNo: "ENR21001",
-        groupId: g1.id,
-        isLeader: true,
-      },
-    }),
-    prisma.student.create({
-      data: {
-        studentId: "STU002",
-        username: "stu_mem1",
-        passwordHash,
-        fullName: "Rohan Patel",
-        email: "rohan@student.uit.edu",
-        department: "Computer Science",
-        enrollmentNo: "ENR21002",
-        groupId: g1.id,
-      },
-    }),
-    prisma.student.create({
-      data: {
-        studentId: "STU003",
-        username: "stu_mem2",
-        passwordHash,
-        fullName: "Sneha Iyer",
-        email: "sneha@student.uit.edu",
-        department: "Computer Science",
-        enrollmentNo: "ENR21003",
-        groupId: g1.id,
-      },
-    }),
-    prisma.student.create({
-      data: {
-        studentId: "STU004",
-        username: "stu_lead2",
-        passwordHash,
-        fullName: "Kabir Singh",
-        email: "kabir@student.uit.edu",
-        department: "Information Technology",
-        enrollmentNo: "ENR21011",
-        groupId: g2.id,
-        isLeader: true,
-      },
-    }),
-    prisma.student.create({
-      data: {
-        studentId: "STU005",
-        username: "stu_mem3",
-        passwordHash,
-        fullName: "Meera Joshi",
-        email: "meera@student.uit.edu",
-        department: "Information Technology",
-        enrollmentNo: "ENR21012",
-        groupId: g2.id,
-      },
-    }),
-    prisma.student.create({
-      data: {
-        studentId: "STU006",
-        username: "stu_lead3",
-        passwordHash,
-        fullName: "Arjun Nair",
-        email: "arjun@student.uit.edu",
-        department: "Computer Science",
-        enrollmentNo: "ENR21021",
-        groupId: g3.id,
-        isLeader: true,
-      },
-    }),
-    prisma.student.create({
-      data: {
-        studentId: "STU007",
-        username: "stu_mem4",
-        passwordHash,
-        fullName: "Diya Kapoor",
-        email: "diya@student.uit.edu",
-        department: "Computer Science",
-        enrollmentNo: "ENR21022",
-        groupId: g3.id,
-      },
-    }),
-  ]);
-
-  await prisma.groupMentor.createMany({
-    data: [
-      { groupId: g1.id, facultyId: f1.id, assignedBy: admin.id, isPrimary: true },
-      { groupId: g2.id, facultyId: f2.id, assignedBy: admin.id, isPrimary: true },
-      { groupId: g2.id, facultyId: f1.id, assignedBy: admin.id, isPrimary: false },
-    ],
+  // 20 faculty mentors
+  const facultyRows = Array.from({ length: 20 }, (_, i) => {
+    const n = i + 1;
+    const uniqueId = `faculty${n}`;
+    return {
+      uniqueId,
+      passwordHash,
+      fullName: facultyName(i),
+      department: pick(DEPARTMENTS, i),
+      designation: i % 5 === 0 ? "Professor" : i % 3 === 0 ? "Associate Professor" : "Assistant Professor",
+      email: `${uniqueId}@uit.ac.in`,
+      phone: phoneFor(100 + i),
+      isActive: true,
+    };
   });
 
-  const [p1, p2] = await Promise.all([
-    prisma.project.create({
-      data: {
-        groupId: g1.id,
-        title: "AI-Powered Campus Attendance System",
-        abstract:
-          "A facial recognition based attendance system integrated with college ERP.",
-        domain: "Artificial Intelligence",
-        techStack: "Python, OpenCV, Flutter, Firebase",
-        objectives: "Automate attendance; reduce proxy; real-time dashboards for faculty.",
-        status: "under_review",
-        submittedAt: new Date(),
-      },
-    }),
-    prisma.project.create({
-      data: {
-        groupId: g2.id,
-        title: "Smart Library Resource Predictor",
-        abstract: "ML model to predict book demand and optimize library inventory.",
-        domain: "Machine Learning",
-        techStack: "Python, scikit-learn, React, MySQL",
-        objectives: "Forecast demand; recommend purchases; student wait-list insights.",
-        status: "approved",
-        submittedAt: new Date(),
-      },
-    }),
-  ]);
+  // Keep well-known demo names for first three
+  facultyRows[0].fullName = "Dr. Amit Kumar Tiwari";
+  facultyRows[0].department = "CSE";
+  facultyRows[1].fullName = "Mrs. Shruti Srivastava";
+  facultyRows[1].department = "CSE";
+  facultyRows[2].fullName = "Mr. Shashank Dwivedi";
+  facultyRows[2].department = "CSE";
 
-  await prisma.progressUpdate.createMany({
-    data: [
-      {
-        projectId: p1.id,
-        studentId: students[0].id,
-        milestone: "proposal",
-        title: "Proposal submitted",
-        description: "Initial proposal with literature survey.",
-        percentage: 20,
-      },
-      {
-        projectId: p1.id,
-        studentId: students[1].id,
-        milestone: "srs",
-        title: "SRS draft v1",
-        description: "Use cases and functional requirements documented.",
-        percentage: 40,
-      },
-      {
-        projectId: p2.id,
-        studentId: students[3].id,
-        milestone: "design",
-        title: "Architecture complete",
-        description: "System design and ER diagrams finalized.",
-        percentage: 55,
-      },
-      {
-        projectId: p2.id,
-        studentId: students[4].id,
-        milestone: "prototype",
-        title: "MVP demo ready",
-        description: "Core prediction pipeline working on sample data.",
-        percentage: 70,
-      },
-    ],
+  await prisma.faculty.createMany({ data: facultyRows });
+  const faculty = await prisma.faculty.findMany({ orderBy: { uniqueId: "asc" } });
+
+  // 100 students — AKTU-style rolls 2102840100001 .. 2102840100100
+  const studentRows = Array.from({ length: 100 }, (_, i) => {
+    const n = i + 1;
+    const uniqueId = `2102840100${String(n).padStart(3, "0")}`;
+    const biodataComplete = n > 97 ? false : true; // last 3 need biodata
+    const useOldBatch = n > 90 && n <= 97; // a few in older batch
+    return {
+      uniqueId,
+      passwordHash,
+      fullName: biodataComplete ? studentName(i) : `New Student ${n}`,
+      email: biodataComplete ? `${uniqueId}@student.uit.ac.in` : null,
+      phone: biodataComplete ? phoneFor(n) : null,
+      department: biodataComplete ? "CSE" : null,
+      branch: biodataComplete ? pick(BRANCHES, i) : null,
+      section: biodataComplete ? pick(SECTIONS, i) : null,
+      semester: biodataComplete ? "VII" : null,
+      batchId: useOldBatch ? batchOld.id : batch.id,
+      biodataComplete,
+      isLeader: false,
+      isActive: true,
+    };
   });
 
-  await prisma.assessment.createMany({
-    data: [
-      {
-        groupId: g1.id,
-        facultyId: f1.id,
-        studentId: students[0].id,
-        milestone: "proposal",
-        marks: 8.5,
-        contributionNote: "Strong problem statement and clear scope.",
-      },
-      {
-        groupId: g1.id,
-        facultyId: f1.id,
-        studentId: students[1].id,
-        milestone: "srs",
-        marks: 7,
-        contributionNote: "Good documentation; needs tighter non-functional reqs.",
-      },
-      {
-        groupId: g1.id,
-        facultyId: f1.id,
-        milestone: "proposal",
-        marks: 8,
-        contributionNote: "Group proposal accepted with minor revisions.",
-      },
-      {
-        groupId: g2.id,
-        facultyId: f2.id,
-        studentId: students[3].id,
-        milestone: "design",
-        marks: 9,
-        contributionNote: "Excellent architecture and modularity.",
-      },
-      {
-        groupId: g2.id,
-        facultyId: f2.id,
-        studentId: students[4].id,
-        milestone: "prototype",
-        marks: 8.5,
-        contributionNote: "Solid MVP; improve error handling.",
-      },
-    ],
+  await prisma.student.createMany({ data: studentRows });
+  const students = await prisma.student.findMany({
+    where: { batchId: batch.id, biodataComplete: true },
+    orderBy: { uniqueId: "asc" },
   });
 
-  await prisma.comment.createMany({
-    data: [
-      {
-        groupId: g1.id,
-        facultyId: f1.id,
-        body: "Please refine the dataset collection plan before next review.",
-      },
-      {
-        groupId: g1.id,
-        facultyId: f1.id,
-        studentId: students[1].id,
-        body: "Add sequence diagrams for the attendance flow.",
-      },
-      {
-        groupId: g2.id,
-        facultyId: f2.id,
-        body: "Great pace. Schedule mid-term demo next week.",
-      },
-    ],
-  });
-
-  await prisma.milestoneDeadline.createMany({
-    data: [
-      {
-        milestone: "proposal",
-        title: "Proposal submission deadline",
-        dueAt: new Date("2026-08-15T23:59:00"),
-        description: "Upload proposal PDF to the submission vault.",
-        createdById: admin.id,
-      },
-      {
-        milestone: "final",
-        title: "Final report deadline",
-        dueAt: new Date("2026-11-30T23:59:00"),
-        description: "Final report + demo pack due.",
-        createdById: admin.id,
-      },
-    ],
-  });
-
-  await prisma.announcement.create({
+  const g1 = await prisma.projectGroup.create({
     data: {
-      title: "Welcome to UIT - SPAM",
-      body: "Use portals for project work, mentoring, and assessment. Check deadlines regularly.",
-      audience: "all",
-      createdById: admin.id,
+      groupCode: "GRP-2027-001",
+      projectTitle: "Smart Campus Attendance using Computer Vision",
+      projectAbout:
+        "A camera-based attendance system that detects and recognizes student faces in classrooms, marks attendance automatically, and generates reports for faculty.",
+      domain: "Computer Vision / Campus automation",
+      objectives:
+        "Reduce manual attendance time\nImprove accuracy of daily records\nProvide exportable attendance reports for mentors",
+      techStack: "Python, OpenCV, Face recognition, Next.js, SQLite",
+      batchId: batch.id,
+      status: "active",
     },
   });
 
-  await prisma.rubric.create({
+  const g2 = await prisma.projectGroup.create({
     data: {
-      name: "Standard FYP Rubric",
-      description: "Default campus rubric",
-      criteria: {
-        create: [
-          { label: "Problem scope & clarity", maxMarks: 10, weight: 1, sortOrder: 1 },
-          { label: "Design & architecture", maxMarks: 10, weight: 1, sortOrder: 2 },
-          { label: "Implementation quality", maxMarks: 20, weight: 2, sortOrder: 3 },
-          { label: "Documentation", maxMarks: 10, weight: 1, sortOrder: 4 },
-          { label: "Individual contribution", maxMarks: 10, weight: 1, sortOrder: 5 },
-        ],
-      },
+      groupCode: "GRP-2027-002",
+      projectTitle: "AI Study Companion for Engineering Students",
+      projectAbout:
+        "An AI helper that answers syllabus-oriented questions, suggests study plans, and tracks weekly learning goals for final-year engineering students.",
+      domain: "EdTech / Generative AI",
+      objectives:
+        "Personalize revision plans\nAnswer subject FAQs with citations\nTrack weekly study progress",
+      techStack: "Next.js, Python, LLMs, Vector search",
+      batchId: batch.id,
+      status: "active",
     },
   });
 
-  await prisma.contributionLog.create({
-    data: {
-      groupId: g1.id,
-      studentId: students[0].id,
-      weekLabel: "Week 4",
-      title: "Dataset collection pipeline",
-      description: "Built scripts to collect sample campus imagery.",
-      hours: 6,
-      evidence: "github.com/codecrafters/attendance",
-    },
+  // Put first 6 biodata-complete 2027-batch students into demo groups
+  const demo = students.slice(0, 6);
+  await prisma.student.update({
+    where: { id: demo[0].id },
+    data: { groupId: g1.id, isLeader: true },
+  });
+  await prisma.student.update({
+    where: { id: demo[1].id },
+    data: { groupId: g1.id, isLeader: false },
+  });
+  await prisma.student.update({
+    where: { id: demo[2].id },
+    data: { groupId: g1.id, isLeader: false },
+  });
+  await prisma.student.update({
+    where: { id: demo[3].id },
+    data: { groupId: g2.id, isLeader: true },
+  });
+  await prisma.student.update({
+    where: { id: demo[4].id },
+    data: { groupId: g2.id, isLeader: false },
+  });
+  await prisma.student.update({
+    where: { id: demo[5].id },
+    data: { groupId: g2.id, isLeader: false },
   });
 
-  await prisma.notification.createMany({
-    data: [
-      {
-        role: "student",
-        userId: students[0].id,
-        title: "Welcome",
-        body: "Your group GRP-2026-001 is active. Upload your proposal when ready.",
-        href: "/student/submissions",
-      },
-      {
-        role: "faculty",
-        userId: f1.id,
-        title: "Mentorship ready",
-        body: "You are mentoring GRP-2026-001 and co-mentoring GRP-2026-002.",
-        href: "/faculty/review",
-      },
-      {
-        role: "admin",
-        userId: admin.id,
-        title: "System seeded",
-        body: "Demo data loaded for UIT - SPAM.",
-        href: "/admin",
-      },
-    ],
+  const f1 = faculty.find((f) => f.uniqueId === "faculty1")!;
+  const f2 = faculty.find((f) => f.uniqueId === "faculty2")!;
+
+  await prisma.groupMentor.create({
+    data: { groupId: g1.id, facultyId: f1.id, isPrimary: true },
+  });
+  await prisma.groupMentor.create({
+    data: { groupId: g2.id, facultyId: f2.id, isPrimary: true },
   });
 
-  await prisma.policySetting.createMany({
-    data: [
-      { key: "late_submissions", value: "yes" },
-      { key: "peer_ratings_required", value: "no" },
-    ],
+  for (let week = 1; week <= 8; week++) {
+    await prisma.weeklyEntry.create({
+      data: {
+        groupId: g1.id,
+        weekNumber: week,
+        summary: week === 1 ? "Setup repo, UI wireframes, and database schema." : "",
+        performance: week === 1 ? "satisfactory" : null,
+        submissionDate: week === 1 ? new Date() : null,
+        submittedById: week === 1 ? demo[0].id : null,
+      },
+    });
+  }
+
+  const studentCount = await prisma.student.count();
+  const facultyCount = await prisma.faculty.count();
+  const freeCount = await prisma.student.count({
+    where: { biodataComplete: true, groupId: null },
   });
 
-  console.log("Seeded UIT - SPAM demo data.");
-  console.log("Password for all accounts: password123");
-  void f3;
+  console.log("Seeded UIT-SPAM (MAP-aligned)");
+  console.log(`Faculty mentors: ${facultyCount}`);
+  console.log(`Students: ${studentCount} (${freeCount} free with biodata for invites)`);
+  console.log("Admin: testadmin / 123456  OR  principal / password123");
+  console.log("Faculty: faculty1 .. faculty20 / password123");
+  console.log("Students: 2102840100001 .. 2102840100100 / password123");
+  console.log("Incomplete biodata: 2102840100098 .. 2102840100100 / password123");
 }
 
 main()

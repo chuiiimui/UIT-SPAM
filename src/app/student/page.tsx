@@ -1,119 +1,117 @@
-import { auth } from "@/auth";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import {
-  Badge,
-  btnPrimary,
-  btnSecondary,
-  Card,
-  Field,
-  inputClass,
-  PageHead,
-  Shell,
-  statusTone,
-} from "@/components/ui";
-import { saveStudentProject } from "@/lib/actions/app";
-import { statusLabel } from "@/lib/constants";
+import { requireRole } from "@/lib/map/session";
 import { studentNav } from "@/lib/nav";
+import { Badge, Card, PageHead, Shell } from "@/components/ui";
+import {
+  BiodataForm,
+  CreateGroupForm,
+  InviteResponseButtons,
+} from "@/components/student-home-forms";
+import { ToastFromQuery } from "@/components/alerts";
 
-export default async function StudentProjectPage() {
-  const session = await auth();
+export default async function StudentHomePage() {
+  const session = await requireRole("student");
   const student = await prisma.student.findUnique({
-    where: { id: Number(session!.user.id) },
-    include: {
-      group: {
-        include: {
-          project: true,
-          mentors: { where: { isPrimary: true }, include: { faculty: true } },
-        },
-      },
-    },
+    where: { id: Number(session.user.id) },
+    include: { group: true, batch: true },
   });
-  const group = student?.group;
-  const project = group?.project;
-  const mentor = group?.mentors[0]?.faculty;
+  if (!student) redirect("/");
+
+  if (student.groupId) {
+    redirect(`/group/${student.groupId}`);
+  }
+
+  const invites = student.biodataComplete
+    ? await prisma.groupInvite.findMany({
+        where: { aktuRoll: student.uniqueId, status: "pending" },
+        include: {
+          group: {
+            include: {
+              batch: true,
+              students: { where: { isLeader: true }, take: 1 },
+            },
+          },
+          invitedBy: true,
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
 
   return (
-    <Shell nav={studentNav("project")} user={session!.user}>
+    <Shell nav={studentNav("home")} user={session.user}>
+      <ToastFromQuery />
       <PageHead
-        title="Project creation"
-        subtitle="Define your final-year project. Your mentor will review once submitted."
-        actions={
-          group ? (
-            <div className="flex flex-wrap gap-2">
-              <Badge tone="info">{group.groupCode}</Badge>
-              <Badge tone={statusTone(group.status)}>{statusLabel(group.status)}</Badge>
-              {group.isTemporary ? <Badge tone="warn">Temporary ID</Badge> : null}
-            </div>
-          ) : null
+        title={`Hello, ${student.fullName}`}
+        subtitle={
+          student.biodataComplete
+            ? "Create a group, or approve invites from other leaders."
+            : "Complete your biodata to continue."
         }
       />
 
-      {!group ? (
-        <Card>
-          <p>No group mapped to this account. Contact the admin office.</p>
+      {!student.biodataComplete ? (
+        <Card title="Student biodata">
+          <BiodataForm
+            uniqueId={student.uniqueId}
+            defaults={{
+              fullName: student.fullName,
+              email: student.email ?? "",
+              phone: student.phone ?? "",
+              department: student.department ?? "CSE",
+              branch: student.branch ?? "CSE",
+              section: student.section ?? "",
+              semester: student.semester ?? "VII",
+              bioNote: student.bioNote ?? "",
+            }}
+          />
         </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-          <Card title={project ? "Update project" : "Create project"}>
-            <form action={saveStudentProject}>
-              <Field label="Project title">
-                <input className={inputClass} name="title" required defaultValue={project?.title || ""} />
-              </Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Domain">
-                  <input className={inputClass} name="domain" defaultValue={project?.domain || ""} />
-                </Field>
-                <Field label="Tech stack">
-                  <input className={inputClass} name="techStack" defaultValue={project?.techStack || ""} />
-                </Field>
+        <div className="grid gap-4">
+          {invites.length > 0 ? (
+            <Card title="Pending group invites">
+              <p className="mt-0 text-sm text-muted">
+                Approve an invite to join that team. After members accept, the group goes to admin for
+                approval.
+              </p>
+              <div className="grid gap-3">
+                {invites.map((inv) => {
+                  const leader = inv.group.students[0] ?? inv.invitedBy;
+                  return (
+                    <div
+                      key={inv.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-3"
+                    >
+                      <div>
+                        <div className="font-semibold">{inv.group.projectTitle}</div>
+                        <div className="text-sm text-muted">
+                          {inv.group.groupCode} · {inv.group.batch.label} · Invited by{" "}
+                          {leader.fullName}
+                        </div>
+                      </div>
+                      <InviteResponseButtons inviteId={inv.id} />
+                    </div>
+                  );
+                })}
               </div>
-              <Field label="Abstract">
-                <textarea className={inputClass} name="abstract" rows={4} defaultValue={project?.abstract || ""} />
-              </Field>
-              <Field label="Objectives">
-                <textarea className={inputClass} name="objectives" rows={3} defaultValue={project?.objectives || ""} />
-              </Field>
-              <div className="flex flex-wrap gap-2">
-                <button className={btnSecondary} name="action" value="save" type="submit">
-                  Save draft
-                </button>
-                <button className={btnPrimary} name="action" value="submit" type="submit">
-                  Submit for review
-                </button>
-              </div>
-            </form>
+            </Card>
+          ) : null}
+
+          <Card title="Create a group">
+            <CreateGroupForm batchLabel={student.batch?.label ?? "Not assigned"} />
+            <div className="mt-4 text-sm">
+              <Link href="/guidelines" className="font-semibold text-brand no-underline">
+                Read project guidelines →
+              </Link>
+            </div>
           </Card>
 
-          <div className="grid gap-4 self-start">
-            <Card title="Group snapshot">
-              <p className="m-0 font-semibold">{group.groupName || group.groupCode}</p>
-              <p className="mt-1 text-muted">
-                {group.department} · {group.academicYear} · Sem {group.semester}
-              </p>
-              <hr className="my-4 border-line" />
-              <p className="m-0 text-sm text-muted">Project status</p>
-              <div className="mt-2">
-                {project ? (
-                  <Badge tone={statusTone(project.status)}>{statusLabel(project.status)}</Badge>
-                ) : (
-                  <Badge>not created</Badge>
-                )}
-              </div>
-            </Card>
-            <Card title="Project mentor">
-              {mentor ? (
-                <>
-                  <p className="m-0 font-semibold">{mentor.fullName}</p>
-                  <p className="mt-1 text-muted">
-                    {mentor.facultyId} · {mentor.designation}
-                  </p>
-                  <p className="text-muted">{mentor.department}</p>
-                </>
-              ) : (
-                <p className="text-muted">Mentor not assigned yet. Admin will map a faculty advisor soon.</p>
-              )}
-            </Card>
-          </div>
+          {invites.length === 0 ? (
+            <p className="m-0 text-sm text-muted">
+              No pending invites. <Badge>Waiting for a leader to invite you</Badge>
+            </p>
+          ) : null}
         </div>
       )}
     </Shell>

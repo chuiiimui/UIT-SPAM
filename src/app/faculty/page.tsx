@@ -1,109 +1,82 @@
 import Link from "next/link";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Badge, Card, Kpi, PageHead, Shell, statusTone, btnSecondary } from "@/components/ui";
+import { requireRole } from "@/lib/map/session";
 import { facultyNav } from "@/lib/nav";
-import { statusLabel } from "@/lib/constants";
+import { Badge, Card, PageHead, Shell } from "@/components/ui";
 
-async function facultyGroups(facultyId: number) {
-  return prisma.groupMentor.findMany({
-    where: { facultyId },
-    include: {
-      group: { include: { project: true, assessments: true } },
+export default async function FacultyHomePage() {
+  const session = await requireRole("faculty");
+  const mentorships = await prisma.groupMentor.findMany({
+    where: {
+      facultyId: Number(session.user.id),
+      group: { status: "active" },
     },
-    orderBy: { group: { groupCode: "asc" } },
+    include: {
+      group: {
+        include: {
+          batch: true,
+          students: { orderBy: { isLeader: "desc" } },
+          weeklyEntries: true,
+        },
+      },
+    },
+    orderBy: { assignedAt: "asc" },
   });
-}
-
-export default async function FacultyDashboard() {
-  const session = await auth();
-  const facultyId = Number(session!.user.id);
-  const mentorships = await facultyGroups(facultyId);
-  const groupIds = mentorships.map((m) => m.groupId);
-
-  const pendingReviews = groupIds.length
-    ? await prisma.project.count({
-        where: { groupId: { in: groupIds }, status: { in: ["submitted", "under_review"] } },
-      })
-    : 0;
-  const assessmentCount = await prisma.assessment.count({ where: { facultyId } });
 
   return (
-    <Shell nav={facultyNav("dash")} user={session!.user}>
+    <Shell nav={facultyNav("home")} user={session.user}>
       <PageHead
-        title="Monitoring & assessment"
-        subtitle={`Welcome, ${session!.user.name} · ${session!.user.facultyId}`}
+        title="My groups"
+        subtitle="Open a group to review weekly diary and R1–R8 marks on one page."
       />
-      <div className="mb-4 grid gap-4 sm:grid-cols-3">
-        <Kpi label="Assigned groups" value={mentorships.length} />
-        <Kpi label="Pending reviews" value={pendingReviews} />
-        <Kpi label="Your assessments" value={assessmentCount} />
-      </div>
-      <Card title="Groups you mentor">
-        {!mentorships.length ? (
-          <p className="text-muted">No groups assigned yet. The admin will map groups to your faculty ID.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                  <th className="py-3">Group</th>
-                  <th>Project</th>
-                  <th>Status</th>
-                  <th>Role</th>
-                  <th>Avg marks</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {mentorships.map((m) => {
-                  const avg =
-                    m.group.assessments.length > 0
-                      ? Math.round(
-                          (m.group.assessments.reduce(
-                            (s, a) => s + (a.marks / a.maxMarks) * 100,
-                            0,
-                          ) /
-                            m.group.assessments.length) *
-                            10,
-                        ) / 10
-                      : null;
-                  return (
-                    <tr key={m.id} className="border-t border-line">
-                      <td className="py-3">
-                        <strong>{m.group.groupCode}</strong>
-                        <div className="text-muted">{m.group.groupName}</div>
-                      </td>
-                      <td>
-                        {m.group.project?.title || "—"}
-                        {m.group.project ? (
-                          <div className="mt-1">
-                            <Badge tone={statusTone(m.group.project.status)}>
-                              {statusLabel(m.group.project.status)}
-                            </Badge>
-                          </div>
-                        ) : null}
-                      </td>
-                      <td>
-                        <Badge tone={statusTone(m.group.status)}>{statusLabel(m.group.status)}</Badge>
-                      </td>
-                      <td>
-                        {m.isPrimary ? <Badge tone="ok">Primary</Badge> : <Badge>Co-mentor</Badge>}
-                      </td>
-                      <td>{avg !== null ? `${avg}%` : "—"}</td>
-                      <td>
-                        <Link className={btnSecondary + " !py-2 !px-3 text-xs"} href={`/faculty/groups/${m.groupId}`}>
-                          Open
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+
+      {mentorships.length === 0 ? (
+        <Card>
+          <p className="m-0 text-muted">No groups assigned yet. Ask admin to assign you as mentor.</p>
+        </Card>
+      ) : (
+        <div className="grid gap-3">
+          {mentorships.map(({ group }) => {
+            const filledWeeks = group.weeklyEntries.filter((w) => w.summary.trim()).length;
+            const leader = group.students.find((s) => s.isLeader) ?? group.students[0];
+            return (
+              <div
+                key={group.id}
+                className="rounded-[18px] border border-line bg-white/80 p-5 shadow-[var(--shadow)] transition hover:border-[rgba(51,77,147,0.35)]"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+                      {group.groupCode} · {group.batch.label}
+                    </div>
+                    <h2 className="m-0 mt-1 font-[family-name:var(--font-display)] text-xl">
+                      {group.projectTitle}
+                    </h2>
+                    <p className="mt-1 mb-0 text-sm text-ink-soft">
+                      Leader: {leader?.fullName ?? "—"} · {group.students.length} members
+                    </p>
+                  </div>
+                  <Badge tone="info">{filledWeeks}/8 weeks logged</Badge>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    href={`/group/${group.id}`}
+                    className="rounded-xl bg-brand px-3.5 py-2 text-sm font-semibold text-white no-underline"
+                  >
+                    Open group
+                  </Link>
+                  <Link
+                    href={`/group/${group.id}?summary=1`}
+                    className="rounded-xl border border-line bg-white px-3.5 py-2 text-sm font-semibold text-brand-deep no-underline"
+                  >
+                    Project summary
+                  </Link>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </Shell>
   );
 }

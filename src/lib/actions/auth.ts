@@ -2,24 +2,30 @@
 
 import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/auth";
-import type { Role } from "@/lib/constants";
+import { prisma } from "@/lib/prisma";
 
 export async function loginAction(formData: FormData) {
-  const username = String(formData.get("username") || "");
+  const uniqueId = String(formData.get("uniqueId") || "").trim();
   const password = String(formData.get("password") || "");
-  const role = String(formData.get("role") || "") as Role;
-  const callbackUrl = String(formData.get("callbackUrl") || "/");
 
   try {
+    const admin = await prisma.admin.findUnique({ where: { uniqueId } });
+    const faculty = await prisma.faculty.findUnique({ where: { uniqueId } });
+    const student = await prisma.student.findUnique({ where: { uniqueId } });
+
+    let redirectTo = "/";
+    if (admin) redirectTo = "/admin";
+    else if (faculty) redirectTo = "/faculty";
+    else if (student) redirectTo = "/student";
+
     await signIn("credentials", {
-      username,
+      uniqueId,
       password,
-      role,
-      redirectTo: callbackUrl,
+      redirectTo,
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      return { error: "Invalid credentials. Please try again." };
+      return { error: "Invalid Unique Id or password." };
     }
     throw error;
   }

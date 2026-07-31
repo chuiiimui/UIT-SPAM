@@ -1,18 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { loginAction } from "@/lib/actions/auth";
 import { btnPrimary, Field, inputClass } from "@/components/ui";
-import type { Role } from "@/lib/constants";
 
 export function LoginForm({
-  role,
-  callbackUrl,
-  demoUser,
+  demoUser = "2102840100001",
+  demoPassword = "password123",
 }: {
-  role: Role;
-  callbackUrl: string;
-  demoUser: string;
+  demoUser?: string;
+  demoPassword?: string;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -29,15 +27,20 @@ export function LoginForm({
 
   return (
     <form action={onSubmit} className="space-y-1">
-      <input type="hidden" name="role" value={role} />
-      <input type="hidden" name="callbackUrl" value={callbackUrl} />
       {error ? (
         <div className="mb-4 rounded-xl bg-[#fee4e2] px-4 py-3 text-sm font-medium text-danger">
           {error}
         </div>
       ) : null}
-      <Field label="Username">
-        <input className={inputClass} name="username" required defaultValue={demoUser} />
+      <Field label="Unique Id">
+        <input
+          className={inputClass}
+          name="uniqueId"
+          required
+          autoComplete="username"
+          placeholder="AKTU roll / faculty id / admin id"
+          defaultValue={demoUser}
+        />
       </Field>
       <Field label="Password">
         <input
@@ -45,14 +48,28 @@ export function LoginForm({
           name="password"
           type="password"
           required
-          defaultValue="password123"
+          autoComplete="current-password"
+          defaultValue={demoPassword}
         />
       </Field>
       <button className={`${btnPrimary} w-full`} type="submit" disabled={pending}>
-        {pending ? "Signing in…" : "Sign in"}
+        {pending ? "Signing in…" : "Login"}
       </button>
-      <div className="mt-4 rounded-xl border border-dashed border-[rgba(196,138,42,0.35)] bg-[rgba(196,138,42,0.1)] px-4 py-3 text-[0.82rem] text-ink-soft">
-        Demo: <strong>{demoUser}</strong> / password123
+      <p className="mt-3 mb-0 text-center text-sm">
+        <Link href="/forgot-password" className="font-semibold text-brand no-underline">
+          Forgot password?
+        </Link>
+      </p>
+      <div className="mt-4 space-y-1 rounded-xl border border-line bg-brand-mist/60 px-4 py-3 text-[0.8rem] text-ink-soft">
+        <div>
+          Student: <strong>2102840100001</strong> / password123
+        </div>
+        <div>
+          Faculty: <strong>faculty1</strong> / password123
+        </div>
+        <div>
+          Admin: <strong>testadmin</strong> / 123456
+        </div>
       </div>
     </form>
   );

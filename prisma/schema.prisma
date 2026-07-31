@@ -7,94 +7,100 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Batch {
+  id              Int              @id @default(autoincrement())
+  label           String           @unique
+  endYear         Int              @unique
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  groups          ProjectGroup[]
+  rubricDeadlines RubricDeadline[]
+  students        Student[]
+}
+
 model Admin {
-  id              Int           @id @default(autoincrement())
-  username        String        @unique
-  passwordHash    String
-  fullName        String
-  email           String?
-  createdAt       DateTime      @default(now())
-  mentorsAssigned GroupMentor[]
-  announcements   Announcement[]
-  deadlines       MilestoneDeadline[]
+  id           Int           @id @default(autoincrement())
+  uniqueId     String        @unique
+  passwordHash String
+  fullName     String
+  email        String?
+  createdAt    DateTime      @default(now())
+  mentorships  GroupMentor[]
 }
 
 model Faculty {
-  id              Int               @id @default(autoincrement())
-  facultyId       String            @unique
-  username        String            @unique
-  passwordHash    String
-  fullName        String
-  email           String?
-  department      String?
-  phone           String?
-  designation     String            @default("Assistant Professor")
-  isActive        Boolean           @default(true)
-  createdAt       DateTime          @default(now())
-  mentorships     GroupMentor[]
-  assessments     Assessment[]
-  comments        Comment[]
-  rubricScores    RubricScore[]
-  meetings        Meeting[]
-  flags           EscalationFlag[]
-  commentTemplates CommentTemplate[]
-  teamReviews     TeamChangeRequest[] @relation("FacultyTeamReview")
-  vivaScores      VivaScore[]
-}
-
-model ProjectGroup {
-  id              Int                 @id @default(autoincrement())
-  groupCode       String              @unique
-  groupName       String?
-  academicYear    String?
-  semester        String?
-  department      String?
-  status          String              @default("pending")
-  isTemporary     Boolean             @default(true)
-  submissionsLocked Boolean           @default(false)
-  marksFrozen     Boolean             @default(false)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  students        Student[]
-  mentors         GroupMentor[]
-  project         Project?
-  assessments     Assessment[]
-  comments        Comment[]
-  submissions     Submission[]
-  contributions   ContributionLog[]
-  peerRatings     PeerRating[]
-  meetings        Meeting[]
-  flags           EscalationFlag[]
-  teamRequests    TeamChangeRequest[]
-  rubricScores    RubricScore[]
-  vivaScores      VivaScore[]
-  milestoneStates GroupMilestone[]
+  id           Int               @id @default(autoincrement())
+  uniqueId     String            @unique
+  passwordHash String
+  fullName     String
+  email        String?
+  department   String?
+  phone        String?
+  designation  String            @default("Assistant Professor")
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  mentorships  GroupMentor[]
+  weeklyEvals  WeeklyEntry[]
+  rubricMarks  RubricStudentMark[]
 }
 
 model Student {
-  id               Int               @id @default(autoincrement())
-  studentId        String            @unique
-  username         String            @unique
-  passwordHash     String
-  fullName         String
-  email            String?
-  phone            String?
-  department       String?
-  enrollmentNo     String?
-  isLeader         Boolean           @default(false)
-  isActive         Boolean           @default(true)
-  createdAt        DateTime          @default(now())
-  groupId          Int?
-  group            ProjectGroup?     @relation(fields: [groupId], references: [id])
-  progressUpdates  ProgressUpdate[]
-  assessments      Assessment[]
-  comments         Comment[]
-  submissions      Submission[]
-  contributions    ContributionLog[]
-  peerRatingsGiven PeerRating[]      @relation("Rater")
-  peerRatingsRecv  PeerRating[]      @relation("Ratee")
-  meetingAttendance MeetingAttendance[]
-  teamRequests     TeamChangeRequest[]
+  id              Int                 @id @default(autoincrement())
+  uniqueId        String              @unique // AKTU roll number
+  passwordHash    String
+  fullName        String
+  email           String?
+  phone           String?
+  department      String?
+  branch          String?
+  section         String?
+  semester        String?
+  batchId         Int?
+  biodataComplete Boolean             @default(false)
+  bioNote         String?
+  isLeader        Boolean             @default(false)
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  groupId         Int?
+  batch           Batch?              @relation(fields: [batchId], references: [id])
+  group           ProjectGroup?       @relation(fields: [groupId], references: [id])
+  invitesSent     GroupInvite[]       @relation("InviteSender")
+  weeklyEntries   WeeklyEntry[]
+  rubricMarks     RubricStudentMark[]
+}
+
+model ProjectGroup {
+  id           Int                 @id @default(autoincrement())
+  groupCode    String              @unique
+  projectTitle String              @default("Untitled Project")
+  projectAbout String              @default("")
+  domain       String              @default("")
+  objectives   String              @default("")
+  techStack    String              @default("")
+  batchId      Int
+  status       String              @default("active")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  batch        Batch               @relation(fields: [batchId], references: [id])
+  students     Student[]
+  mentors      GroupMentor[]
+  invites      GroupInvite[]
+  weeklyEntries WeeklyEntry[]
+  rubricStatuses RubricGroupStatus[]
+  rubricMarks  RubricStudentMark[]
+}
+
+model GroupInvite {
+  id         Int          @id @default(autoincrement())
+  groupId    Int
+  aktuRoll   String
+  invitedById Int
+  status     String       @default("pending") // pending | accepted | rejected
+  createdAt  DateTime     @default(now())
+  group      ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  invitedBy  Student      @relation("InviteSender", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, aktuRoll])
 }
 
 model GroupMentor {
@@ -111,67 +117,64 @@ model GroupMentor {
   @@unique([groupId, facultyId])
 }
 
-model Project {
-  id          Int              @id @default(autoincrement())
-  groupId     Int              @unique
-  title       String
-  abstract    String?
-  domain      String?
-  techStack   String?
-  objectives  String?
-  status      String           @default("draft")
-  submittedAt DateTime?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  group       ProjectGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  updates     ProgressUpdate[]
-  submissions Submission[]
+model WeeklyEntry {
+  id             Int          @id @default(autoincrement())
+  groupId        Int
+  weekNumber     Int
+  summary        String       @default("")
+  performance    String? // satisfactory | unsatisfactory
+  submissionDate DateTime?
+  evaluationDate DateTime?
+  evaluatedById  Int?
+  updatedAt      DateTime     @updatedAt
+  group          ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student        Student?     @relation(fields: [submittedById], references: [id])
+  submittedById  Int?
+  evaluator      Faculty?     @relation(fields: [evaluatedById], references: [id])
+
+  @@unique([groupId, weekNumber])
 }
 
-model ProgressUpdate {
-  id             Int       @id @default(autoincrement())
-  projectId      Int
-  studentId      Int?
-  milestone      String
-  title          String
-  description    String?
-  percentage     Int       @default(0)
-  attachmentPath String?
-  createdAt      DateTime  @default(now())
-  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  student        Student?  @relation(fields: [studentId], references: [id])
-  comments       Comment[]
+model RubricDeadline {
+  id         Int      @id @default(autoincrement())
+  batchId    Int
+  rubricCode String // R1..R8
+  dueAt      DateTime
+  batch      Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, rubricCode])
 }
 
-model Assessment {
-  id               Int          @id @default(autoincrement())
-  groupId          Int
-  facultyId        Int
-  studentId        Int?
-  milestone        String?
-  marks            Float
-  maxMarks         Float        @default(10)
-  contributionNote String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  group            ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  faculty          Faculty      @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  student          Student?     @relation(fields: [studentId], references: [id])
+model RubricGroupStatus {
+  id             Int          @id @default(autoincrement())
+  groupId        Int
+  rubricCode     String
+  examinerName   String?
+  status         String       @default("not_completed") // completed | not_completed
+  evaluationDate DateTime?
+  slidesPath     String?
+  reportPath     String?
+  updatedAt      DateTime     @updatedAt
+  group          ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, rubricCode])
 }
 
-model Comment {
-  id         Int             @id @default(autoincrement())
+model RubricStudentMark {
+  id         Int          @id @default(autoincrement())
   groupId    Int
-  facultyId  Int
-  studentId  Int?
-  progressId Int?
-  body       String
-  isFlagged  Boolean         @default(false)
-  createdAt  DateTime        @default(now())
-  group      ProjectGroup    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  faculty    Faculty         @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  student    Student?        @relation(fields: [studentId], references: [id])
-  progress   ProgressUpdate? @relation(fields: [progressId], references: [id])
+  rubricCode String
+  studentId  Int
+  marks      Float        @default(0)
+  maxMarks   Float        @default(0)
+  facultyId  Int?
+  note       String?
+  updatedAt  DateTime     @updatedAt
+  group      ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student    Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  faculty    Faculty?     @relation(fields: [facultyId], references: [id])
+
+  @@unique([groupId, rubricCode, studentId])
 }
 
 model ActivityLog {
@@ -183,222 +186,4 @@ model ActivityLog {
   entityId   Int?
   meta       String?
   createdAt  DateTime @default(now())
-}
-
-// --- New feature models ---
-
-model Submission {
-  id            Int       @id @default(autoincrement())
-  groupId       Int
-  projectId     Int?
-  studentId     Int?
-  docType       String    // proposal | srs | ppt | report | demo | other
-  title         String
-  fileName      String
-  filePath      String
-  mimeType      String?
-  sizeBytes     Int       @default(0)
-  version       Int       @default(1)
-  notes         String?
-  similarityPct Float?
-  createdAt     DateTime  @default(now())
-  group         ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  project       Project?  @relation(fields: [projectId], references: [id])
-  student       Student?  @relation(fields: [studentId], references: [id])
-}
-
-model MilestoneDeadline {
-  id          Int      @id @default(autoincrement())
-  milestone   String
-  title       String
-  dueAt       DateTime
-  department  String?  // null = campus-wide
-  description String?
-  createdById Int?
-  createdAt   DateTime @default(now())
-  createdBy   Admin?   @relation(fields: [createdById], references: [id])
-}
-
-model GroupMilestone {
-  id          Int          @id @default(autoincrement())
-  groupId     Int
-  milestone   String
-  status      String       @default("pending") // pending | in_progress | done | overdue
-  completedAt DateTime?
-  group       ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  @@unique([groupId, milestone])
-}
-
-model Rubric {
-  id          Int              @id @default(autoincrement())
-  name        String
-  description String?
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  criteria    RubricCriterion[]
-  scores      RubricScore[]
-}
-
-model RubricCriterion {
-  id          Int           @id @default(autoincrement())
-  rubricId    Int
-  label       String
-  description String?
-  maxMarks    Float         @default(10)
-  weight      Float         @default(1)
-  sortOrder   Int           @default(0)
-  rubric      Rubric        @relation(fields: [rubricId], references: [id], onDelete: Cascade)
-  scores      RubricScore[]
-}
-
-model RubricScore {
-  id          Int             @id @default(autoincrement())
-  rubricId    Int
-  criterionId Int
-  groupId     Int
-  facultyId   Int
-  studentId   Int?
-  marks       Float
-  note        String?
-  createdAt   DateTime        @default(now())
-  rubric      Rubric          @relation(fields: [rubricId], references: [id], onDelete: Cascade)
-  criterion   RubricCriterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
-  group       ProjectGroup    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  faculty     Faculty         @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-}
-
-model ContributionLog {
-  id          Int          @id @default(autoincrement())
-  groupId     Int
-  studentId   Int
-  weekLabel   String?
-  title       String
-  description String?
-  hours       Float        @default(0)
-  evidence    String?      // commits, links, etc.
-  createdAt   DateTime     @default(now())
-  group       ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  student     Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-}
-
-model PeerRating {
-  id        Int          @id @default(autoincrement())
-  groupId   Int
-  raterId   Int
-  rateeId   Int
-  score     Int          // 1-5
-  note      String?
-  createdAt DateTime     @default(now())
-  group     ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  rater     Student      @relation("Rater", fields: [raterId], references: [id], onDelete: Cascade)
-  ratee     Student      @relation("Ratee", fields: [rateeId], references: [id], onDelete: Cascade)
-
-  @@unique([groupId, raterId, rateeId])
-}
-
-model Meeting {
-  id          Int                 @id @default(autoincrement())
-  groupId     Int
-  facultyId   Int
-  title       String
-  scheduledAt DateTime
-  location    String?
-  notes       String?
-  actionItems String?
-  createdAt   DateTime            @default(now())
-  group       ProjectGroup        @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  faculty     Faculty             @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  attendance  MeetingAttendance[]
-}
-
-model MeetingAttendance {
-  id        Int     @id @default(autoincrement())
-  meetingId Int
-  studentId Int
-  present   Boolean @default(true)
-  meeting   Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([meetingId, studentId])
-}
-
-model EscalationFlag {
-  id          Int          @id @default(autoincrement())
-  groupId     Int
-  facultyId   Int
-  reason      String
-  severity    String       @default("medium") // low | medium | high
-  status      String       @default("open") // open | acknowledged | resolved
-  adminNote   String?
-  createdAt   DateTime     @default(now())
-  resolvedAt  DateTime?
-  group       ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  faculty     Faculty      @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-}
-
-model CommentTemplate {
-  id        Int      @id @default(autoincrement())
-  facultyId Int
-  title     String
-  body      String
-  createdAt DateTime @default(now())
-  faculty   Faculty  @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-}
-
-model TeamChangeRequest {
-  id           Int          @id @default(autoincrement())
-  groupId      Int
-  requestedBy  Int
-  requestType  String       // member_swap | title_change | leader_change
-  payload      String       // JSON details
-  status       String       @default("pending") // pending | approved | rejected
-  reviewNote   String?
-  reviewedById Int?
-  createdAt    DateTime     @default(now())
-  reviewedAt   DateTime?
-  group        ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  requester    Student      @relation(fields: [requestedBy], references: [id], onDelete: Cascade)
-  reviewer     Faculty?     @relation("FacultyTeamReview", fields: [reviewedById], references: [id])
-}
-
-model Notification {
-  id         Int       @id @default(autoincrement())
-  role       String    // admin | faculty | student
-  userId     Int
-  title      String
-  body       String
-  href       String?
-  isRead     Boolean   @default(false)
-  createdAt  DateTime  @default(now())
-}
-
-model Announcement {
-  id          Int      @id @default(autoincrement())
-  title       String
-  body        String
-  audience    String   @default("all") // all | students | faculty | department
-  department  String?
-  createdById Int?
-  createdAt   DateTime @default(now())
-  createdBy   Admin?   @relation(fields: [createdById], references: [id])
-}
-
-model PolicySetting {
-  id    Int    @id @default(autoincrement())
-  key   String @unique
-  value String
-}
-
-model VivaScore {
-  id        Int          @id @default(autoincrement())
-  groupId   Int
-  facultyId Int
-  round     String       // midterm | final
-  marks     Float
-  maxMarks  Float        @default(50)
-  notes     String?
-  createdAt DateTime     @default(now())
-  group     ProjectGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  faculty   Faculty      @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 }

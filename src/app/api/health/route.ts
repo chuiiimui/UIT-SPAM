@@ -6,7 +6,7 @@ export async function GET() {
     ok: true,
     app: APP_NAME,
     version: "2.0.0",
-    stack: "Next.js + Prisma + Auth.js",
+    stack: "Next.js + Prisma + NextAuth",
     fullName: APP_FULL_NAME,
   });
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-/** Mobile-ready JSON endpoints for future Android clients */
+/** JSON endpoints for authenticated clients */
 export async function GET() {
   const session = await auth();
   if (!session?.user) {
@@ -14,19 +14,22 @@ export async function GET() {
   if (role === "student") {
     const student = await prisma.student.findUnique({
       where: { id: Number(id) },
-      include: { group: { include: { project: true } } },
+      include: { group: true, batch: true },
     });
-    return NextResponse.json({ user: session.user, project: student?.group?.project || null });
+    return NextResponse.json({ user: session.user, student });
   }
 
   if (role === "faculty") {
     const groups = await prisma.groupMentor.findMany({
       where: { facultyId: Number(id) },
-      include: { group: { include: { project: true } } },
+      include: { group: { include: { batch: true, students: true } } },
     });
     return NextResponse.json({ user: session.user, groups });
   }
 
-  const groups = await prisma.projectGroup.findMany({ orderBy: { groupCode: "asc" } });
+  const groups = await prisma.projectGroup.findMany({
+    include: { batch: true },
+    orderBy: { groupCode: "asc" },
+  });
   return NextResponse.json({ user: session.user, groups });
 }

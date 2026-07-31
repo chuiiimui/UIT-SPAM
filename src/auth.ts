@@ -8,10 +8,10 @@ import type { Role } from "@/lib/constants";
 declare module "next-auth" {
   interface User {
     role: Role;
-    facultyId?: string | null;
-    studentId?: string | null;
+    uniqueId?: string | null;
     groupId?: number | null;
     isLeader?: boolean;
+    biodataComplete?: boolean;
     department?: string | null;
   }
   interface Session {
@@ -20,10 +20,10 @@ declare module "next-auth" {
       name?: string | null;
       email?: string | null;
       role: Role;
-      facultyId?: string | null;
-      studentId?: string | null;
+      uniqueId?: string | null;
       groupId?: number | null;
       isLeader?: boolean;
+      biodataComplete?: boolean;
       department?: string | null;
     };
   }
@@ -32,101 +32,114 @@ declare module "next-auth" {
 declare module "@auth/core/jwt" {
   interface JWT {
     role?: Role;
-    facultyId?: string | null;
-    studentId?: string | null;
+    uniqueId?: string | null;
     groupId?: number | null;
     isLeader?: boolean;
+    biodataComplete?: boolean;
     department?: string | null;
   }
 }
 
 const credentialsSchema = z.object({
-  username: z.string().min(1),
+  uniqueId: z.string().min(1),
   password: z.string().min(1),
-  role: z.enum(["admin", "faculty", "student"]),
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
-  pages: {
-    signIn: "/",
-  },
+  pages: { signIn: "/" },
   providers: [
     Credentials({
       name: "Credentials",
       credentials: {
-        username: {},
+        uniqueId: {},
         password: {},
-        role: {},
       },
       async authorize(raw) {
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
-        const { username, password, role } = parsed.data;
+        const uniqueId = parsed.data.uniqueId.trim();
+        const { password } = parsed.data;
 
-        if (role === "admin") {
-          const row = await prisma.admin.findUnique({ where: { username } });
-          if (!row || !(await bcrypt.compare(password, row.passwordHash))) return null;
+        const admin = await prisma.admin.findUnique({ where: { uniqueId } });
+        if (admin && (await bcrypt.compare(password, admin.passwordHash))) {
           return {
-            id: String(row.id),
-            name: row.fullName,
-            email: row.email,
+            id: String(admin.id),
+            name: admin.fullName,
+            email: admin.email,
             role: "admin" as const,
+            uniqueId: admin.uniqueId,
           };
         }
 
-        if (role === "faculty") {
-          const row = await prisma.faculty.findUnique({ where: { username } });
-          if (!row || !row.isActive || !(await bcrypt.compare(password, row.passwordHash)))
-            return null;
+        const faculty = await prisma.faculty.findUnique({ where: { uniqueId } });
+        if (faculty?.isActive && (await bcrypt.compare(password, faculty.passwordHash))) {
           return {
-            id: String(row.id),
-            name: row.fullName,
-            email: row.email,
+            id: String(faculty.id),
+            name: faculty.fullName,
+            email: faculty.email,
             role: "faculty" as const,
-            facultyId: row.facultyId,
-            department: row.department,
+            uniqueId: faculty.uniqueId,
+            department: faculty.department,
           };
         }
 
-        const row = await prisma.student.findUnique({ where: { username } });
-        if (!row || !row.isActive || !(await bcrypt.compare(password, row.passwordHash)))
-          return null;
-        return {
-          id: String(row.id),
-          name: row.fullName,
-          email: row.email,
-          role: "student" as const,
-          studentId: row.studentId,
-          groupId: row.groupId,
-          isLeader: row.isLeader,
-          department: row.department,
-        };
+        const student = await prisma.student.findUnique({ where: { uniqueId } });
+        if (student?.isActive && (await bcrypt.compare(password, student.passwordHash))) {
+          return {
+            id: String(student.id),
+            name: student.fullName,
+            email: student.email,
+            role: "student" as const,
+            uniqueId: student.uniqueId,
+            groupId: student.groupId,
+            isLeader: student.isLeader,
+            biodataComplete: student.biodataComplete,
+            department: student.department,
+          };
+        }
+
+        return null;
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.role = user.role;
-        token.facultyId = user.facultyId ?? null;
-        token.studentId = user.studentId ?? null;
+        token.uniqueId = user.uniqueId ?? null;
         token.groupId = user.groupId ?? null;
         token.isLeader = user.isLeader ?? false;
+        token.biodataComplete = user.biodataComplete ?? true;
         token.department = user.department ?? null;
       }
+
+      if (trigger === "update" && token.role === "student" && token.sub) {
+        const student = await prisma.student.findUnique({
+          where: { id: Number(token.sub) },
+          select: { groupId: true, isLeader: true, biodataComplete: true, fullName: true },
+        });
+        if (student) {
+          token.groupId = student.groupId;
+          token.isLeader = student.isLeader;
+          token.biodataComplete = student.biodataComplete;
+          token.name = student.fullName;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.sub!;
         session.user.role = token.role as Role;
-        session.user.facultyId = token.facultyId;
-        session.user.studentId = token.studentId;
+        session.user.uniqueId = token.uniqueId;
         session.user.groupId = token.groupId;
         session.user.isLeader = token.isLeader;
+        session.user.biodataComplete = token.biodataComplete;
         session.user.department = token.department;
+        if (token.name) session.user.name = token.name as string;
       }
       return session;
     },

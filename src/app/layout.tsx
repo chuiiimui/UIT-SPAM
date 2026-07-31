@@ -21,10 +21,16 @@ export const metadata: Metadata = {
   description: APP_TAGLINE,
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover" as const,
+};
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${sora.variable} ${fraunces.variable} h-full antialiased`}>
-      <body className="min-h-full font-sans">{children}</body>
+      <body className="min-h-full overflow-x-hidden font-sans">{children}</body>
     </html>
   );
 }
