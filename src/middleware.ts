@@ -5,7 +5,15 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
   const role = req.auth?.user?.role;
 
-  const protectedPrefixes = ["/admin", "/faculty", "/student", "/group", "/guidelines", "/account"];
+  const protectedPrefixes = [
+    "/admin",
+    "/faculty",
+    "/student",
+    "/students",
+    "/group",
+    "/guidelines",
+    "/account",
+  ];
   const isProtected = protectedPrefixes.some((p) => pathname.startsWith(p));
 
   if (isProtected && !role) {
@@ -18,7 +26,10 @@ export default auth((req) => {
   if (pathname.startsWith("/faculty") && role !== "faculty") {
     return NextResponse.redirect(new URL("/", req.url));
   }
-  if (pathname.startsWith("/student") && role !== "student") {
+  if (pathname.startsWith("/student") && !pathname.startsWith("/students") && role !== "student") {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+  if (pathname.startsWith("/students") && role !== "admin" && role !== "faculty") {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
@@ -30,6 +41,7 @@ export const config = {
     "/admin/:path*",
     "/faculty/:path*",
     "/student/:path*",
+    "/students/:path*",
     "/group/:path*",
     "/guidelines",
     "/account/:path*",

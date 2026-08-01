@@ -139,6 +139,9 @@ model RubricDeadline {
   id         Int      @id @default(autoincrement())
   batchId    Int
   rubricCode String // R1..R8
+  /// When this rubric becomes visible to students & mentors
+  openAt     DateTime
+  /// End of this rubric window / submission deadline
   dueAt      DateTime
   batch      Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
 

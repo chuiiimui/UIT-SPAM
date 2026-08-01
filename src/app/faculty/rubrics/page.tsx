@@ -2,6 +2,10 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/map/session";
 import { facultyNav } from "@/lib/nav";
+import {
+  nextLockedRubric,
+  visibleRubricCodes,
+} from "@/lib/map/rubrics";
 import { RubricCatalog, RubricPanel } from "@/components/rubric-panel";
 import { Badge, Card, PageHead, Shell } from "@/components/ui";
 
@@ -19,7 +23,7 @@ export default async function FacultyRubricsPage({
     include: {
       group: {
         include: {
-          batch: true,
+          batch: { include: { rubricDeadlines: true } },
           students: { orderBy: [{ isLeader: "desc" }, { fullName: "asc" }] },
           rubricStatuses: true,
           rubricMarks: true,
@@ -33,15 +37,34 @@ export default async function FacultyRubricsPage({
   const selectedId = sp.group ? Number(sp.group) : groups[0]?.id;
   const selected = groups.find((g) => g.id === selectedId) ?? null;
 
+  const deadlines = selected?.batch.rubricDeadlines ?? [];
+  const visible = selected ? visibleRubricCodes(deadlines) : [];
+  const next = selected ? nextLockedRubric(deadlines) : null;
+
   return (
     <Shell nav={facultyNav("rubrics")} user={session.user}>
       <PageHead
         title="Rubrics"
-        subtitle="Evaluate R1–R8 for your mentored groups in one place."
+        subtitle="Score only rubrics that are open on the admin timeline. Future windows stay hidden."
       />
 
-      <Card title="Rubric catalog (R1–R8)">
-        <RubricCatalog />
+      {selected && next ? (
+        <Card>
+          <p className="m-0 text-sm text-ink-soft">
+            Next unlock for this batch: <strong>{next.rubricCode}</strong> on{" "}
+            <strong>{new Date(next.openAt).toLocaleString()}</strong>
+            {visible.length ? (
+              <>
+                {" "}
+                · Open now: <strong>{visible.join(", ")}</strong>
+              </>
+            ) : null}
+          </p>
+        </Card>
+      ) : null}
+
+      <Card title={visible.length ? `Open catalog (${visible.join(", ")})` : "Open catalog"}>
+        <RubricCatalog codes={selected ? visible : []} />
       </Card>
 
       {groups.length === 0 ? (
@@ -53,7 +76,10 @@ export default async function FacultyRubricsPage({
           <Card title="Select group">
             <div className="flex flex-wrap gap-2">
               {groups.map((g) => {
-                const done = g.rubricStatuses.filter((r) => r.status === "completed").length;
+                const openCodes = visibleRubricCodes(g.batch.rubricDeadlines);
+                const done = g.rubricStatuses.filter(
+                  (r) => r.status === "completed" && openCodes.includes(r.rubricCode as never),
+                ).length;
                 const active = g.id === selected?.id;
                 return (
                   <Link
@@ -68,7 +94,9 @@ export default async function FacultyRubricsPage({
                     <strong>{g.groupCode}</strong>
                     <span className="ml-2 text-muted">{g.projectTitle}</span>
                     <span className="ml-2">
-                      <Badge tone={done === 8 ? "ok" : "warn"}>{done}/8</Badge>
+                      <Badge tone={openCodes.length > 0 && done === openCodes.length ? "ok" : "warn"}>
+                        {done}/{openCodes.length || 0} open
+                      </Badge>
                     </span>
                   </Link>
                 );
@@ -77,9 +105,7 @@ export default async function FacultyRubricsPage({
           </Card>
 
           {selected ? (
-            <Card
-              title={`Scoring — ${selected.projectTitle}`}
-            >
+            <Card title={`Scoring — ${selected.projectTitle}`}>
               <p className="mt-0 text-sm text-muted">
                 {selected.groupCode} · {selected.batch.label} ·{" "}
                 <Link href={`/group/${selected.id}`} className="font-semibold text-brand no-underline">
@@ -99,6 +125,8 @@ export default async function FacultyRubricsPage({
                 statuses={selected.rubricStatuses}
                 marks={selected.rubricMarks}
                 canEvaluate
+                linkProfiles
+                codes={visible}
               />
             </Card>
           ) : null}

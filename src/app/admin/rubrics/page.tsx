@@ -35,14 +35,14 @@ export default async function AdminRubricsPage({
     <Shell nav={adminNav("rubrics")} user={session.user}>
       <PageHead
         title="Rubrics"
-        subtitle="Campus R1–R8 catalog, group status, and scoring."
+        subtitle="Admin sees all R1–R8. Students and mentors only see rubrics unlocked by the timeline."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/admin/dates"
               className="rounded-xl bg-[#16a34a] px-4 py-3 text-sm font-semibold text-white no-underline"
             >
-              Manage dates
+              Rubric timeline
             </Link>
             <Link
               href="/admin/marks"
@@ -134,6 +134,7 @@ export default async function AdminRubricsPage({
             statuses={selected.rubricStatuses}
             marks={selected.rubricMarks}
             canEvaluate
+            linkProfiles
           />
         </Card>
       ) : null}

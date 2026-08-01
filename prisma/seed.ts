@@ -1,9 +1,23 @@
 import "dotenv/config";
+import { readFileSync } from "fs";
+import path from "path";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { RUBRIC_CODES } from "../src/lib/map/rubrics";
 
 const prisma = new PrismaClient();
+
+/** Exact mentor names from UIT-MAP groups mentor dropdown (scraped from uitmap.com). */
+type MapFaculty = {
+  uniqueId: string;
+  fullName: string;
+  designation: string;
+  department: string;
+};
+
+const MAP_FACULTY: MapFaculty[] = JSON.parse(
+  readFileSync(path.join(__dirname, "data", "map-faculty.json"), "utf8"),
+);
 
 const FIRST = [
   "Aarav", "Vivaan", "Aditya", "Vihaan", "Arjun", "Sai", "Reyansh", "Ayaan", "Krishna", "Ishaan",
@@ -20,8 +34,6 @@ const LAST = [
   "Reddy", "Iyer", "Khan", "Ali", "Das", "Roy", "Ghosh", "Bhatt", "Mehta", "Jain",
 ];
 
-const FACULTY_TITLES = ["Dr.", "Mr.", "Mrs.", "Ms.", "Prof."] as const;
-const DEPARTMENTS = ["CSE", "CSE", "CSE", "IT", "ECE", "CSE", "AI/ML", "CSE"] as const;
 const BRANCHES = ["CSE", "CSE", "IT", "AI/ML", "CSE"] as const;
 const SECTIONS = ["A", "B", "C", "D"] as const;
 
@@ -31,11 +43,6 @@ function pick<T>(arr: readonly T[], i: number): T {
 
 function studentName(i: number) {
   return `${pick(FIRST, i)} ${pick(LAST, i * 3 + 1)}`;
-}
-
-function facultyName(i: number) {
-  const title = pick(FACULTY_TITLES, i);
-  return `${title} ${pick(FIRST, i + 11)} ${pick(LAST, i * 2 + 5)}`;
 }
 
 function phoneFor(i: number) {
@@ -66,13 +73,16 @@ async function main() {
     data: { label: "2021-2025", endYear: 2025, isActive: true },
   });
 
+  // Sequential 14-day windows: R1 open now; later rubrics unlock one after another
   const now = Date.now();
+  const windowMs = 14 * 24 * 60 * 60 * 1000;
   for (let i = 0; i < RUBRIC_CODES.length; i++) {
     await prisma.rubricDeadline.create({
       data: {
         batchId: batch.id,
         rubricCode: RUBRIC_CODES[i],
-        dueAt: new Date(now + (i + 1) * 14 * 24 * 60 * 60 * 1000),
+        openAt: new Date(now + i * windowMs),
+        dueAt: new Date(now + (i + 1) * windowMs - 1000),
       },
     });
   }
@@ -95,32 +105,20 @@ async function main() {
     },
   });
 
-  // 20 faculty mentors
-  const facultyRows = Array.from({ length: 20 }, (_, i) => {
-    const n = i + 1;
-    const uniqueId = `faculty${n}`;
-    return {
-      uniqueId,
-      passwordHash,
-      fullName: facultyName(i),
-      department: pick(DEPARTMENTS, i),
-      designation: i % 5 === 0 ? "Professor" : i % 3 === 0 ? "Associate Professor" : "Assistant Professor",
-      email: `${uniqueId}@uit.ac.in`,
-      phone: phoneFor(100 + i),
-      isActive: true,
-    };
-  });
-
-  // Keep well-known demo names for first three
-  facultyRows[0].fullName = "Dr. Amit Kumar Tiwari";
-  facultyRows[0].department = "CSE";
-  facultyRows[1].fullName = "Mrs. Shruti Srivastava";
-  facultyRows[1].department = "CSE";
-  facultyRows[2].fullName = "Mr. Shashank Dwivedi";
-  facultyRows[2].department = "CSE";
+  // Faculty mentors — exact names from UIT-MAP (16 mentors)
+  const facultyRows = MAP_FACULTY.map((f, i) => ({
+    uniqueId: f.uniqueId,
+    passwordHash,
+    fullName: f.fullName,
+    department: f.department,
+    designation: f.designation,
+    email: `${f.uniqueId}@uit.ac.in`,
+    phone: phoneFor(100 + i),
+    isActive: true,
+  }));
 
   await prisma.faculty.createMany({ data: facultyRows });
-  const faculty = await prisma.faculty.findMany({ orderBy: { uniqueId: "asc" } });
+  const faculty = await prisma.faculty.findMany({ orderBy: { fullName: "asc" } });
 
   // 100 students — AKTU-style rolls 2102840100001 .. 2102840100100
   const studentRows = Array.from({ length: 100 }, (_, i) => {
@@ -208,8 +206,8 @@ async function main() {
     data: { groupId: g2.id, isLeader: false },
   });
 
-  const f1 = faculty.find((f) => f.uniqueId === "faculty1")!;
-  const f2 = faculty.find((f) => f.uniqueId === "faculty2")!;
+  const f1 = faculty.find((f) => f.fullName === "Dr. Amit Kumar Tiwari")!;
+  const f2 = faculty.find((f) => f.fullName === "Mrs. Shruti Srivastava")!;
 
   await prisma.groupMentor.create({
     data: { groupId: g1.id, facultyId: f1.id, isPrimary: true },
@@ -238,10 +236,13 @@ async function main() {
   });
 
   console.log("Seeded UIT-SPAM (MAP-aligned)");
-  console.log(`Faculty mentors: ${facultyCount}`);
+  console.log(`Faculty mentors: ${facultyCount} (copied from UIT-MAP)`);
   console.log(`Students: ${studentCount} (${freeCount} free with biodata for invites)`);
   console.log("Admin: testadmin / 123456  OR  principal / password123");
-  console.log("Faculty: faculty1 .. faculty20 / password123");
+  console.log("Faculty Unique Ids (password password123):");
+  for (const f of MAP_FACULTY) {
+    console.log(`  ${f.uniqueId}  →  ${f.fullName}`);
+  }
   console.log("Students: 2102840100001 .. 2102840100100 / password123");
   console.log("Incomplete biodata: 2102840100098 .. 2102840100100 / password123");
 }

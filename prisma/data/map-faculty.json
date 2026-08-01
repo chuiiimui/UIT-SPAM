@@ -1,0 +1,98 @@
+[
+  {
+    "uniqueId": "abhishek.malviya",
+    "fullName": "Dr. Abhishek Malviya",
+    "designation": "Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "amit.kumar.tiwari",
+    "fullName": "Dr. Amit Kumar Tiwari",
+    "designation": "Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "anubhav.kumar.prasad",
+    "fullName": "Dr. Anubhav Kumar Prasad",
+    "designation": "Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "umesh.pandey",
+    "fullName": "Dr. Umesh Pandey",
+    "designation": "Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "umesh.pandey.2",
+    "fullName": "Dr. Umesh Pandey 2",
+    "designation": "Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "anil.singh",
+    "fullName": "Mr. Anil Singh",
+    "designation": "Assistant Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "ashish.dwivedi",
+    "fullName": "Mr. Ashish Dwivedi",
+    "designation": "Assistant Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "dhananjay.kumar.sharma",
+    "fullName": "Mr. Dhananjay Kumar Sharma",
+    "designation": "Assistant Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "dinesh.kumar.kushwaha",
+    "fullName": "Mr. Dinesh Kumar Kushwaha",
+    "designation": "Assistant Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "gaurav.narain.singh",
+    "fullName": "Mr. Gaurav Narain Singh",
+    "designation": "Assistant Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "maan.singh",
+    "fullName": "Mr. Maan Singh",
+    "designation": "Assistant Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "param.goel",
+    "fullName": "Mr. Param Goel",
+    "designation": "Assistant Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "prafull.pandey",
+    "fullName": "Mr. Prafull Pandey",
+    "designation": "Assistant Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "rohit.mishra",
+    "fullName": "Mr. Rohit Mishra",
+    "designation": "Assistant Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "shashank.dwivedi",
+    "fullName": "Mr. Shashank Dwivedi",
+    "designation": "Assistant Professor",
+    "department": "CSE"
+  },
+  {
+    "uniqueId": "shruti.srivastava",
+    "fullName": "Mrs. Shruti Srivastava",
+    "designation": "Assistant Professor",
+    "department": "CSE"
+  }
+]

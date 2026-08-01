@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/map/session";
 import { adminNav } from "@/lib/nav";
 import { adminReviewGroup, assignMentor, deleteGroup } from "@/lib/map/actions";
+import { StudentNameLink } from "@/components/student-name-link";
 import {
   Badge,
   Card,
@@ -74,7 +75,13 @@ export default async function AdminGroupsPage({
                   <div>
                     <div className="font-semibold">{g.projectTitle}</div>
                     <div className="text-sm text-muted">
-                      {g.groupCode} · Leader {leader?.fullName ?? "—"} · {g.students.length} members
+                      {g.groupCode} · Leader{" "}
+                      {leader ? (
+                        <StudentNameLink studentId={leader.id} name={leader.fullName} />
+                      ) : (
+                        "—"
+                      )}{" "}
+                      · {g.students.length} members
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -160,7 +167,13 @@ export default async function AdminGroupsPage({
                     <td className="py-3 pr-3">
                       <Badge tone={statusTone(g.status)}>{g.status.replaceAll("_", " ")}</Badge>
                     </td>
-                    <td className="py-3 pr-3">{leader?.fullName ?? "—"}</td>
+                    <td className="py-3 pr-3">
+                      {leader ? (
+                        <StudentNameLink studentId={leader.id} name={leader.fullName} />
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="py-3 pr-3">
                       <form action={assignMentor} className="flex gap-2">
                         <input type="hidden" name="groupId" value={g.id} />

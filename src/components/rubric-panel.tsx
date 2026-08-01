@@ -1,9 +1,10 @@
 "use client";
 
-import { RUBRIC_CODES, RUBRICS } from "@/lib/map/rubrics";
+import { RUBRIC_CODES, RUBRICS, type RubricCode } from "@/lib/map/rubrics";
 import { saveRubricMarks, saveRubricStatus } from "@/lib/map/actions";
 import { RubricFiles } from "@/components/rubric-files";
 import { ActionForm } from "@/components/action-form";
+import { StudentName } from "@/components/student-name-link";
 import { Badge, Field, btnPrimary, btnSecondary, inputClass } from "@/components/ui";
 import { useRouter } from "next/navigation";
 
@@ -24,6 +25,8 @@ export function RubricPanel({
   marks,
   canEvaluate,
   canUpload = false,
+  linkProfiles = false,
+  codes = RUBRIC_CODES as unknown as RubricCode[],
 }: {
   groupId: number;
   students: StudentRow[];
@@ -31,15 +34,27 @@ export function RubricPanel({
   marks: MarkRow[];
   canEvaluate: boolean;
   canUpload?: boolean;
+  linkProfiles?: boolean;
+  /** Subset of R1–R8 to render (timeline filter for students/mentors). */
+  codes?: RubricCode[];
 }) {
   const router = useRouter();
   const refresh = () => router.refresh();
   const statusMap = new Map(statuses.map((r) => [r.rubricCode, r]));
   const allowUpload = canUpload || canEvaluate;
 
+  if (codes.length === 0) {
+    return (
+      <p className="m-0 text-sm text-muted">
+        No rubrics are open on the project timeline yet. Check back after the admin opens the next
+        window.
+      </p>
+    );
+  }
+
   return (
     <div className="grid gap-5">
-      {RUBRIC_CODES.map((code) => {
+      {codes.map((code) => {
         const meta = RUBRICS[code];
         const status = statusMap.get(code);
         return (
@@ -127,7 +142,24 @@ export function RubricPanel({
                             (m) => m.studentId === s.id && m.rubricCode === code,
                           );
                           return (
-                            <Field key={s.id} label={`${s.fullName} (${s.uniqueId})`}>
+                            <Field
+                              key={s.id}
+                              label={
+                                linkProfiles ? (
+                                  <span>
+                                    <StudentName
+                                      studentId={s.id}
+                                      name={s.fullName}
+                                      link
+                                      className="font-semibold text-brand no-underline hover:underline"
+                                    />{" "}
+                                    <span className="font-normal text-muted">({s.uniqueId})</span>
+                                  </span>
+                                ) : (
+                                  `${s.fullName} (${s.uniqueId})`
+                                )
+                              }
+                            >
                               <input
                                 className={inputClass}
                                 name={`marks_${s.id}`}
@@ -160,7 +192,16 @@ export function RubricPanel({
                       key={s.id}
                       className="rounded-xl border border-line bg-white px-3 py-2 text-sm"
                     >
-                      <strong>{s.fullName}</strong>
+                      <StudentName
+                        studentId={s.id}
+                        name={s.fullName}
+                        link={linkProfiles}
+                        className={
+                          linkProfiles
+                            ? "font-semibold text-brand no-underline hover:underline"
+                            : "font-semibold"
+                        }
+                      />
                       <div className="text-muted">
                         Score: {existing ? existing.marks : "—"} / {meta.maxMarks}
                       </div>
@@ -176,10 +217,22 @@ export function RubricPanel({
   );
 }
 
-export function RubricCatalog() {
+export function RubricCatalog({
+  codes = RUBRIC_CODES as unknown as RubricCode[],
+}: {
+  codes?: RubricCode[];
+}) {
+  if (codes.length === 0) {
+    return (
+      <p className="m-0 text-sm text-muted">
+        Rubric details unlock with the project timeline set by admin.
+      </p>
+    );
+  }
+
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      {RUBRIC_CODES.map((code) => {
+      {codes.map((code) => {
         const meta = RUBRICS[code];
         return (
           <div key={code} className="rounded-2xl border border-line bg-white/80 p-4">

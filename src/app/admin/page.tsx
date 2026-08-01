@@ -7,7 +7,7 @@ import { Kpi, PageHead, Shell } from "@/components/ui";
 const tiles = [
   { href: "/admin/groups", title: "Groups", body: "Search groups, assign mentors, open reviews", color: "bg-[#2563eb]" },
   { href: "/admin/rubrics", title: "Rubrics", body: "R1–R8 catalog, status, and scoring", color: "bg-[#0d9488]" },
-  { href: "/admin/dates", title: "Manage Dates", body: "Set R1–R8 deadlines per batch", color: "bg-[#16a34a]" },
+  { href: "/admin/dates", title: "Manage Dates", body: "Set R1–R8 open/due timeline (unlocks one by one)", color: "bg-[#16a34a]" },
   { href: "/admin/marks", title: "Marks sheet", body: "View and download student marksheet", color: "bg-[#0891b2]" },
   { href: "/admin/students", title: "Students", body: "Register students with AKTU rolls", color: "bg-[#334d93]" },
   { href: "/admin/import", title: "CSV Import", body: "Bulk-register students from a spreadsheet", color: "bg-[#0f766e]" },

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/map/session";
 import { facultyNav } from "@/lib/nav";
+import { StudentNameLink } from "@/components/student-name-link";
 import { Badge, Card, PageHead, Shell } from "@/components/ui";
 
 export default async function FacultyHomePage() {
@@ -53,8 +54,29 @@ export default async function FacultyHomePage() {
                       {group.projectTitle}
                     </h2>
                     <p className="mt-1 mb-0 text-sm text-ink-soft">
-                      Leader: {leader?.fullName ?? "—"} · {group.students.length} members
+                      Leader:{" "}
+                      {leader ? (
+                        <StudentNameLink studentId={leader.id} name={leader.fullName} />
+                      ) : (
+                        "—"
+                      )}{" "}
+                      · {group.students.length} members
                     </p>
+                    {group.students.length > 0 ? (
+                      <p className="mt-1 mb-0 text-xs text-muted">
+                        Members:{" "}
+                        {group.students.map((s, i) => (
+                          <span key={s.id}>
+                            {i > 0 ? ", " : ""}
+                            <StudentNameLink
+                              studentId={s.id}
+                              name={s.fullName}
+                              className="font-medium text-brand no-underline hover:underline"
+                            />
+                          </span>
+                        ))}
+                      </p>
+                    ) : null}
                   </div>
                   <Badge tone="info">{filledWeeks}/8 weeks logged</Badge>
                 </div>

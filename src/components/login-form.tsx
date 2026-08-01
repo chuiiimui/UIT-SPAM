@@ -65,7 +65,7 @@ export function LoginForm({
           Student: <strong>2102840100001</strong> / password123
         </div>
         <div>
-          Faculty: <strong>faculty1</strong> / password123
+          Faculty: <strong>amit.kumar.tiwari</strong> / password123
         </div>
         <div>
           Admin: <strong>testadmin</strong> / 123456

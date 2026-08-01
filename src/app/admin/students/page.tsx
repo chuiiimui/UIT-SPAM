@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/map/session";
 import { adminNav } from "@/lib/nav";
 import { CreateStudentForm, ResetPasswordForm } from "@/components/admin-user-forms";
+import { StudentNameLink } from "@/components/student-name-link";
 import { Card, PageHead, Shell } from "@/components/ui";
 
 export default async function AdminStudentsPage() {
@@ -52,7 +53,9 @@ export default async function AdminStudentsPage() {
               {students.map((s) => (
                 <tr key={s.id} className="border-b border-line/70">
                   <td className="py-2 pr-3 font-medium">{s.uniqueId}</td>
-                  <td className="py-2 pr-3">{s.fullName}</td>
+                  <td className="py-2 pr-3">
+                    <StudentNameLink studentId={s.id} name={s.fullName} />
+                  </td>
                   <td className="py-2 pr-3">{s.batch?.label ?? "—"}</td>
                   <td className="py-2 pr-3">{s.biodataComplete ? "Complete" : "Pending"}</td>
                   <td className="py-2 pr-3">{s.group?.groupCode ?? "—"}</td>

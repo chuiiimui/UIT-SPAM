@@ -14,6 +14,7 @@ import {
   WeeklySummaryForm,
 } from "@/components/group-forms";
 import { ToastFromQuery } from "@/components/alerts";
+import { StudentName } from "@/components/student-name-link";
 import {
   Badge,
   Card,
@@ -83,6 +84,7 @@ export default async function GroupPage({
     role === "admin" ||
     role === "faculty" ||
     (role === "student" && isLeader);
+  const linkStudentProfiles = role === "admin" || role === "faculty";
   const pendingInvites = group.invites.filter((i) => i.status === "pending");
   const weeksLogged = group.weeklyEntries.filter((w) => w.summary.trim()).length;
   const rubricsHref =
@@ -123,6 +125,7 @@ export default async function GroupPage({
                 batchLabel: group.batch.label,
                 mentorName: mentor?.fullName ?? null,
                 members: group.students.map((s) => ({
+                  id: s.id,
                   fullName: s.fullName,
                   uniqueId: s.uniqueId,
                   isLeader: s.isLeader,
@@ -130,6 +133,7 @@ export default async function GroupPage({
                 weeksLogged,
                 rubricsCompleted: completedRubrics,
                 totalRubrics: RUBRIC_CODES.length,
+                linkProfiles: linkStudentProfiles,
               }}
             />
           </div>
@@ -208,7 +212,18 @@ export default async function GroupPage({
             <tbody>
               {totals.map(({ student, total }) => (
                 <tr key={student.id} className="border-b border-line/70">
-                  <td className="py-3 pr-3 font-medium">{student.fullName}</td>
+                  <td className="py-3 pr-3 font-medium">
+                    <StudentName
+                      studentId={student.id}
+                      name={student.fullName}
+                      link={linkStudentProfiles}
+                      className={
+                        linkStudentProfiles
+                          ? "font-semibold text-brand no-underline hover:underline"
+                          : undefined
+                      }
+                    />
+                  </td>
                   <td className="py-3 pr-3">{student.uniqueId}</td>
                   <td className="py-3 pr-3">
                     <Badge tone={student.isLeader ? "info" : "muted"}>

@@ -8,7 +8,7 @@ import bcrypt from "bcryptjs";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAktuRoll, MAX_GROUP_SIZE } from "@/lib/constants";
-import { isRubricCode, RUBRICS, WEEK_COUNT } from "@/lib/map/rubrics";
+import { isRubricCode, isRubricUnlocked, RUBRICS, WEEK_COUNT } from "@/lib/map/rubrics";
 import { fail, ok, type ActionResult } from "@/lib/map/result";
 
 async function log(action: string, entityType?: string, entityId?: number, meta?: string) {
@@ -530,6 +530,9 @@ export async function saveRubricStatus(formData: FormData): Promise<ActionResult
   const status = String(formData.get("status") || "not_completed");
   if (!isRubricCode(rubricCode)) return fail("Invalid rubric.");
 
+  const locked = await assertRubricTimelineOpen(groupId, rubricCode, session.user.role);
+  if (locked) return locked;
+
   if (session.user.role === "faculty") {
     const mentorship = await prisma.groupMentor.findFirst({
       where: { groupId, facultyId: Number(session.user.id) },
@@ -567,6 +570,9 @@ export async function saveRubricMarks(formData: FormData): Promise<ActionResult>
   const groupId = Number(formData.get("groupId"));
   const rubricCode = String(formData.get("rubricCode") || "");
   if (!isRubricCode(rubricCode)) return fail("Invalid rubric.");
+
+  const locked = await assertRubricTimelineOpen(groupId, rubricCode, session.user.role);
+  if (locked) return locked;
 
   if (session.user.role === "faculty") {
     const mentorship = await prisma.groupMentor.findFirst({
@@ -639,26 +645,64 @@ export async function assignMentor(formData: FormData) {
   revalidateGroup(groupId);
 }
 
-export async function saveRubricDeadlines(formData: FormData) {
+export async function saveRubricDeadlines(formData: FormData): Promise<ActionResult> {
   const session = await auth();
-  if (session?.user?.role !== "admin") return; // "Unauthorized"
+  if (session?.user?.role !== "admin") return fail("Unauthorized.");
 
   const batchId = Number(formData.get("batchId"));
-  if (!batchId) return; // "Batch required."
+  if (!batchId) return fail("Batch required.");
 
+  let saved = 0;
   for (const code of Object.keys(RUBRICS)) {
-    const value = String(formData.get(`due_${code}`) || "");
-    if (!value) continue;
-    const dueAt = new Date(value);
+    const openRaw = String(formData.get(`open_${code}`) || "").trim();
+    const dueRaw = String(formData.get(`due_${code}`) || "").trim();
+    if (!openRaw && !dueRaw) continue;
+    if (!openRaw || !dueRaw) {
+      return fail(`${code}: set both open and due date/time.`);
+    }
+    const openAt = new Date(openRaw);
+    const dueAt = new Date(dueRaw);
+    if (Number.isNaN(openAt.getTime()) || Number.isNaN(dueAt.getTime())) {
+      return fail(`${code}: invalid date/time.`);
+    }
+    if (dueAt.getTime() < openAt.getTime()) {
+      return fail(`${code}: due must be on or after open.`);
+    }
     await prisma.rubricDeadline.upsert({
       where: { batchId_rubricCode: { batchId, rubricCode: code } },
-      create: { batchId, rubricCode: code, dueAt },
-      update: { dueAt },
+      create: { batchId, rubricCode: code, openAt, dueAt },
+      update: { openAt, dueAt },
     });
+    saved++;
   }
 
-  await log("deadlines_saved", "batch", batchId);
+  if (saved === 0) return fail("Set at least one rubric window.");
+
+  await log("deadlines_saved", "batch", batchId, `saved=${saved}`);
   revalidatePath("/admin/dates");
+  revalidatePath("/admin/rubrics");
+  revalidatePath("/faculty/rubrics");
+  revalidatePath("/student/rubrics");
+  return ok(`Saved timeline for ${saved} rubric(s).`);
+}
+
+/** Students/faculty may only touch unlocked rubrics; admin always allowed. */
+async function assertRubricTimelineOpen(
+  groupId: number,
+  rubricCode: string,
+  role: string,
+): Promise<ActionResult | null> {
+  if (role === "admin") return null;
+  const group = await prisma.projectGroup.findUnique({
+    where: { id: groupId },
+    include: { batch: { include: { rubricDeadlines: true } } },
+  });
+  if (!group) return fail("Group not found.");
+  const schedule = group.batch.rubricDeadlines.find((d) => d.rubricCode === rubricCode);
+  if (!schedule || !isRubricUnlocked(schedule.openAt)) {
+    return fail(`${rubricCode} is not open on the project timeline yet.`);
+  }
+  return null;
 }
 
 export async function adminCreateStudent(formData: FormData): Promise<ActionResult> {
@@ -833,6 +877,9 @@ export async function uploadRubricFile(formData: FormData): Promise<ActionResult
     return fail("Allowed: PDF, PPT/PPTX, DOC/DOCX, PNG, JPG.");
   }
 
+  const locked = await assertRubricTimelineOpen(groupId, rubricCode, session.user.role);
+  if (locked) return locked;
+
   const allowed = await canAccessGroup(session.user.role, Number(session.user.id), groupId);
   if (!allowed) return fail("Unauthorized for this group.");
 
@@ -890,6 +937,9 @@ export async function deleteRubricFile(formData: FormData): Promise<ActionResult
   if (!groupId || !isRubricCode(rubricCode) || (kind !== "slides" && kind !== "report")) {
     return fail("Invalid request.");
   }
+
+  const locked = await assertRubricTimelineOpen(groupId, rubricCode, session.user.role);
+  if (locked) return locked;
 
   const allowed = await canAccessGroup(session.user.role, Number(session.user.id), groupId);
   if (!allowed) return fail("Unauthorized.");

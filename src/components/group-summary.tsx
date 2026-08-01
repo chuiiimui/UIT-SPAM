@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveProjectSummary } from "@/lib/map/actions";
+import { StudentName } from "@/components/student-name-link";
 import { btnPrimary, btnSecondary, inputClass } from "@/components/ui";
 
 export type GroupSummaryData = {
@@ -16,10 +17,11 @@ export type GroupSummaryData = {
   status: string;
   batchLabel: string;
   mentorName: string | null;
-  members: { fullName: string; uniqueId: string; isLeader: boolean }[];
+  members: { id: number; fullName: string; uniqueId: string; isLeader: boolean }[];
   weeksLogged: number;
   rubricsCompleted: number;
   totalRubrics: number;
+  linkProfiles?: boolean;
 };
 
 export function GroupSummaryButton({
@@ -149,7 +151,16 @@ export function GroupSummaryButton({
                         key={m.uniqueId}
                         className="rounded-lg border border-line bg-white px-3 py-2 text-ink"
                       >
-                        <strong>{m.fullName}</strong>
+                        <StudentName
+                          studentId={m.id}
+                          name={m.fullName}
+                          link={data.linkProfiles}
+                          className={
+                            data.linkProfiles
+                              ? "font-semibold text-brand no-underline hover:underline"
+                              : "font-semibold"
+                          }
+                        />
                         <span className="text-muted">
                           {" "}
                           · {m.uniqueId}

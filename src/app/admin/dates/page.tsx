@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/map/session";
 import { adminNav } from "@/lib/nav";
-import { RUBRIC_CODES, RUBRICS } from "@/lib/map/rubrics";
-import { saveRubricDeadlines } from "@/lib/map/actions";
-import { Card, Field, PageHead, Shell, btnPrimary, inputClass } from "@/components/ui";
+import { RubricTimelineForm } from "@/components/rubric-timeline-form";
+import { Card, PageHead, Shell, inputClass } from "@/components/ui";
 
-function toDateInput(d: Date) {
-  return d.toISOString().slice(0, 10);
+function toDatetimeLocal(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export default async function AdminDatesPage({
@@ -23,11 +23,19 @@ export default async function AdminDatesPage({
   const deadlines = batch
     ? await prisma.rubricDeadline.findMany({ where: { batchId: batch.id } })
     : [];
-  const dueMap = new Map(deadlines.map((d) => [d.rubricCode, d.dueAt]));
+
+  const schedules = deadlines.map((d) => ({
+    rubricCode: d.rubricCode,
+    openAt: toDatetimeLocal(d.openAt),
+    dueAt: toDatetimeLocal(d.dueAt),
+  }));
 
   return (
     <Shell nav={adminNav("dates")} user={session.user}>
-      <PageHead title="Project Deadline Dates" subtitle="Set final submission deadlines for Rubrics R1–R8." />
+      <PageHead
+        title="Rubric timeline"
+        subtitle="Set open and due date/time for R1–R8. Students and mentors only see rubrics after their open time."
+      />
 
       <Card>
         <form className="mb-5 flex flex-wrap gap-2">
@@ -43,25 +51,14 @@ export default async function AdminDatesPage({
           </button>
         </form>
 
+        <p className="mt-0 mb-4 text-sm text-muted">
+          Tip: make each next rubric&apos;s <strong>Open</strong> time after the previous{" "}
+          <strong>Due</strong> so only one new rubric appears at a time. Past unlocked rubrics stay
+          visible so scores and uploads remain available.
+        </p>
+
         {batch ? (
-          <form action={saveRubricDeadlines}>
-            <input type="hidden" name="batchId" value={batch.id} />
-            <div className="grid gap-3 md:grid-cols-2">
-              {RUBRIC_CODES.map((code) => (
-                <Field key={code} label={`${code} deadline — ${RUBRICS[code].title}`}>
-                  <input
-                    className={inputClass}
-                    type="date"
-                    name={`due_${code}`}
-                    defaultValue={dueMap.get(code) ? toDateInput(dueMap.get(code)!) : ""}
-                  />
-                </Field>
-              ))}
-            </div>
-            <button className={btnPrimary} type="submit">
-              Save changes
-            </button>
-          </form>
+          <RubricTimelineForm batchId={batch.id} schedules={schedules} />
         ) : (
           <p className="text-muted">No batches found.</p>
         )}

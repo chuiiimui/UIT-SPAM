@@ -22,11 +22,11 @@ Password for faculty/students: `password123`
 |------|-----------|
 | Admin | `testadmin` / `123456` |
 | Admin (alt) | `principal` / `password123` |
-| Faculty (20) | `faculty1` … `faculty20` |
+| Faculty (16 from UIT-MAP) | e.g. `amit.kumar.tiwari`, `shruti.srivastava` — see `prisma/data/map-faculty.json` |
 | Students (100) | `2102840100001` … `2102840100100` |
 | Student (needs biodata) | `2102840100098` … `2102840100100` |
 
-Seed includes 2 demo active groups; ~91 students with biodata are free to invite.
+Faculty **names** match UIT-MAP’s mentor list exactly. Seed includes 2 demo active groups; ~91 students with biodata are free to invite.
 
 ## Flow
 

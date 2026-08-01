@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/map/session";
 import { adminNav } from "@/lib/nav";
 import { RUBRIC_CODES } from "@/lib/map/rubrics";
+import { StudentNameLink } from "@/components/student-name-link";
 import { Card, PageHead, Shell, inputClass } from "@/components/ui";
 
 export default async function AdminMarksPage({
@@ -34,6 +35,7 @@ export default async function AdminMarksPage({
       return {
         sr: idx === 0 ? g.id : "",
         groupCode: idx === 0 ? g.groupCode : "",
+        studentId: s.id,
         roll: s.uniqueId,
         name: s.fullName,
         mentor: g.mentors[0]?.faculty.fullName ?? "—",
@@ -112,7 +114,13 @@ export default async function AdminMarksPage({
                 <tr key={`${r.roll}`} className="border-b border-line/60">
                   <td className="py-2 pr-2">{r.groupCode}</td>
                   <td className="py-2 pr-2">{r.roll}</td>
-                  <td className="py-2 pr-2">{r.name}</td>
+                  <td className="py-2 pr-2">
+                    <StudentNameLink
+                      studentId={r.studentId}
+                      name={r.name}
+                      className="font-semibold text-brand no-underline hover:underline"
+                    />
+                  </td>
                   <td className="py-2 pr-2">{r.mentor}</td>
                   <td className="py-2 pr-2 max-w-[180px] truncate">{r.project}</td>
                   {RUBRIC_CODES.map((c) => (

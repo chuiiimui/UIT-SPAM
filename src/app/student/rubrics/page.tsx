@@ -2,9 +2,14 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/map/session";
 import { studentNav } from "@/lib/nav";
-import { RUBRIC_CODES, RUBRICS } from "@/lib/map/rubrics";
+import {
+  isRubricInActiveWindow,
+  nextLockedRubric,
+  RUBRICS,
+  visibleRubricCodes,
+} from "@/lib/map/rubrics";
 import { RubricCatalog, RubricPanel } from "@/components/rubric-panel";
-import { Card, PageHead, Shell } from "@/components/ui";
+import { Badge, Card, PageHead, Shell } from "@/components/ui";
 
 export default async function StudentRubricsPage() {
   const session = await requireRole("student");
@@ -25,16 +30,17 @@ export default async function StudentRubricsPage() {
   if (!student) return null;
 
   const group = student.group;
+  const deadlines = group?.batch.rubricDeadlines ?? [];
+  const visible = visibleRubricCodes(deadlines);
+  const next = nextLockedRubric(deadlines);
   const myMarks = group?.rubricMarks.filter((m) => m.studentId === student.id) ?? [];
-  const dueMap = new Map(
-    (group?.batch.rubricDeadlines ?? []).map((d) => [d.rubricCode, d.dueAt]),
-  );
+  const scheduleMap = new Map(deadlines.map((d) => [d.rubricCode, d]));
 
   return (
     <Shell nav={studentNav("rubrics")} user={session.user}>
       <PageHead
         title="Rubrics"
-        subtitle="R1–R8 evaluation criteria and your group scores."
+        subtitle="Only timeline-open rubrics are shown. Future ones unlock when admin’s schedule opens them."
         actions={
           group ? (
             <div className="flex flex-wrap gap-2">
@@ -55,32 +61,62 @@ export default async function StudentRubricsPage() {
         }
       />
 
-      <Card title="Rubric catalog (R1–R8)">
-        <RubricCatalog />
+      {next ? (
+        <Card>
+          <p className="m-0 text-sm text-ink-soft">
+            Next unlock: <strong>{next.rubricCode}</strong> opens{" "}
+            <strong>{new Date(next.openAt).toLocaleString()}</strong>
+            {visible.length ? (
+              <>
+                {" "}
+                · Currently open:{" "}
+                {visible.map((c) => (
+                  <Badge key={c} tone={isRubricInActiveWindow(scheduleMap.get(c)) ? "ok" : "muted"}>
+                    {c}
+                  </Badge>
+                ))}
+              </>
+            ) : null}
+          </p>
+        </Card>
+      ) : null}
+
+      <Card title={visible.length ? `Open rubrics (${visible.join(", ")})` : "Open rubrics"}>
+        <RubricCatalog codes={visible} />
       </Card>
 
       {group ? (
         <>
-          <Card title="Your scores">
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {RUBRIC_CODES.map((code) => {
-                const mark = myMarks.find((m) => m.rubricCode === code);
-                const due = dueMap.get(code);
-                return (
-                  <div key={code} className="rounded-xl border border-line bg-white px-3 py-3 text-sm">
-                    <strong>
-                      {code} · {RUBRICS[code].title}
-                    </strong>
-                    <div className="mt-1 text-brand-deep font-semibold">
-                      {mark ? mark.marks : "—"} / {RUBRICS[code].maxMarks}
+          <Card title="Your scores (open rubrics)">
+            {visible.length === 0 ? (
+              <p className="m-0 text-muted">No rubric window is open yet.</p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {visible.map((code) => {
+                  const mark = myMarks.find((m) => m.rubricCode === code);
+                  const schedule = scheduleMap.get(code);
+                  const active = isRubricInActiveWindow(schedule);
+                  return (
+                    <div key={code} className="rounded-xl border border-line bg-white px-3 py-3 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <strong>
+                          {code} · {RUBRICS[code].title}
+                        </strong>
+                        {active ? <Badge tone="ok">Active</Badge> : <Badge>Unlocked</Badge>}
+                      </div>
+                      <div className="mt-1 text-brand-deep font-semibold">
+                        {mark ? mark.marks : "—"} / {RUBRICS[code].maxMarks}
+                      </div>
+                      <div className="mt-1 text-xs text-muted">
+                        {schedule
+                          ? `${new Date(schedule.openAt).toLocaleDateString()} → ${new Date(schedule.dueAt).toLocaleDateString()}`
+                          : "—"}
+                      </div>
                     </div>
-                    <div className="mt-1 text-xs text-muted">
-                      Due: {due ? new Date(due).toLocaleDateString() : "—"}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </Card>
 
           <Card title={`Group review — ${group.projectTitle}`}>
@@ -91,6 +127,7 @@ export default async function StudentRubricsPage() {
               marks={group.rubricMarks}
               canEvaluate={false}
               canUpload={group.status === "active"}
+              codes={visible}
             />
           </Card>
         </>
