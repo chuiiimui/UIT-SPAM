@@ -2,7 +2,12 @@
 
 **United Institute Of Technology — Student Project Assessment And Mentorship**
 
-MAP-aligned campus portal: one Unique Id login, student biodata, groups by AKTU roll, weekly diary (1–8), rubrics R1–R8 on a single group page.
+MAP-aligned campus portal for final-year projects: one Unique Id login, student biodata, groups by AKTU roll, invite/approve flow, weekly diary (1–8), and rubrics R1–R8 with an admin-controlled unlock timeline.
+
+## Requirements
+
+- Node.js 20+
+- npm
 
 ## Setup
 
@@ -14,46 +19,86 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
+| Script | Purpose |
+|--------|---------|
+| `npm run dev` | Start Next.js (Turbopack) |
+| `npm run db:reset` | Reset SQLite DB + seed demo data |
+| `npm run db:push` | Apply schema without reseeding |
+| `npm run db:seed` | Seed only |
+
 ## Demo logins
 
-Password for faculty/students: `password123`
+| Role | Unique Id | Password |
+|------|-----------|----------|
+| Admin | `testadmin` | `123456` |
+| Admin (alt) | `principal` | `password123` |
+| Faculty (16 from UIT-MAP) | e.g. `amit.kumar.tiwari`, `shruti.srivastava` | `password123` |
+| Students | `2102840100001` … `2102840100100` | `password123` |
+| Student (needs biodata) | `2102840100050` … `2102840100100` | `password123` |
 
-| Role | Unique Id |
-|------|-----------|
-| Admin | `testadmin` / `123456` |
-| Admin (alt) | `principal` / `password123` |
-| Faculty (16 from UIT-MAP) | e.g. `amit.kumar.tiwari`, `shruti.srivastava` — see `prisma/data/map-faculty.json` |
-| Students (100) | `2102840100001` … `2102840100100` |
-| Student (needs biodata) | `2102840100098` … `2102840100100` |
+- Full faculty list: [`prisma/data/map-faculty.json`](prisma/data/map-faculty.json) (names match UIT-MAP mentors).
+- Faculty emails: `{uniqueId}@uit.ac.in` · Admin: `principal@uit.ac.in` · Students with biodata: `{roll}@student.uit.ac.in`
+- Seed includes **10 premade active groups** (`GRP-2027-001` … `010`), 3 members each (rolls `…0001`–`…0030`), each with a UIT-MAP mentor.
+- Remaining biodata-complete students (`…0031`–`…0049`) are free to invite; `…0050`–`…0100` must complete biodata first.
 
-Faculty **names** match UIT-MAP’s mentor list exactly. Seed includes 2 demo active groups; ~91 students with biodata are free to invite.
+## Product flow
 
-## Flow
+1. **Admin** registers students/faculty (or **CSV import** at `/admin/import`) and sets the **R1–R8 timeline** (open + due) at `/admin/dates`.
+2. **Student** logs in → completes biodata → creates a group or accepts invites (AKTU roll search).
+3. Invites require member approve/reject; leader submits (or auto-submits) → status `pending_admin`.
+4. **Admin** approves the group and assigns a mentor on Groups.
+5. On `/group/[id]`: weekly diary (1–8); project summary; links to Rubrics.
+6. **Students & mentors** only see rubrics whose **Open** time has passed; **admin** sees all R1–R8.
+7. R2 / R6: upload slides + report (active groups).
+8. Admin downloads the marksheet from Marks.
 
-1. Admin registers students/faculty (or **CSV import** at `/admin/import`) and sets R1–R8 dates  
-2. Student completes biodata → creates/joins group with AKTU rolls (invite → member approve → admin approve)  
-3. Admin assigns mentor on Groups  
-4. Student fills weekly diary on `/group/[id]`; faculty/admin score R1–R8 on Rubrics  
-5. R2/R6: upload slides + report on Rubrics (active groups)  
-6. Admin downloads marksheet from Marks  
+## Features (current)
 
-## Passwords
+- Single login (`/`) — role from Unique Id  
+- ActionResult validation banners on forms  
+- Group invite search, member approve, admin approve  
+- Project summary modal on the group page  
+- Rubric timeline unlock (students/faculty); full catalog for admin  
+- R2/R6 file uploads under `public/uploads/groups/`  
+- Student biodata page for faculty/admin: `/students/[id]` (click any student name)  
+- Password change (`/account/password`), forgot password (`/forgot-password`), admin reset  
+- Bulk CSV student import  
 
-- Logged-in users: **Password** nav → `/account/password`  
-- Forgot: `/forgot-password` (Unique Id + registered email)  
-- Demo emails: student `roll@student.uit.ac.in`, faculty `facultyN@uit.ac.in`, admin `principal@uit.ac.in`  
-- Admin can reset student/faculty passwords from Students / Faculty lists  
+## Key routes
 
-## Key paths
-
-| Area | Path |
-|------|------|
-| Actions / validation | `src/lib/map/actions.ts`, `src/components/action-form.tsx` |
-| Schema / seed | `prisma/schema.prisma`, `prisma/seed.ts` |
-| Group page | `src/app/group/[id]/page.tsx` |
-| Rubrics + uploads | `src/components/rubric-panel.tsx`, `src/components/rubric-files.tsx` |
-| Uploads on disk | `public/uploads/groups/` (gitignored) |
+| Who | Route | Purpose |
+|-----|-------|---------|
+| All | `/` | Login |
+| All | `/forgot-password` | Reset via Unique Id + email |
+| All | `/account/password` | Change password when logged in |
+| All | `/guidelines` | Project guidelines |
+| Student | `/student` | Biodata / create group / invites |
+| Student | `/student/rubrics` | Open rubrics only |
+| Faculty | `/faculty` | Mentored groups |
+| Faculty | `/faculty/rubrics` | Score open rubrics |
+| Shared | `/group/[id]` | Single group page (diary, members, summary) |
+| Staff | `/students/[id]` | Student biodata (admin / mentoring faculty) |
+| Admin | `/admin` | Control tiles |
+| Admin | `/admin/groups` | Approve, assign mentors |
+| Admin | `/admin/dates` | R1–R8 open/due timeline |
+| Admin | `/admin/rubrics` | All rubrics + scoring |
+| Admin | `/admin/marks` | Marksheet + CSV |
+| Admin | `/admin/students` | Register / reset password |
+| Admin | `/admin/import` | Bulk CSV students |
+| Admin | `/admin/faculty` | Mentors / reset password |
 
 ## Stack
 
-Next.js, TypeScript, Prisma (SQLite locally), NextAuth, Tailwind CSS
+Next.js 16 · TypeScript · Prisma (SQLite) · Auth.js (NextAuth v5) · Tailwind CSS v4
+
+## Docs
+
+- [DOCUMENTATION.md](./DOCUMENTATION.md) — roles, data model, rubrics, file map  
+- [STUDENT_CREDENTIALS.md](./STUDENT_CREDENTIALS.md) — all student Unique Ids + biodata status  
+- [MENTOR_CREDENTIALS.md](./MENTOR_CREDENTIALS.md) — all mentor Unique Ids  
+
+Regenerate credential lists after reseeding:
+
+```bash
+npx tsx scripts/export-credentials.ts
+```

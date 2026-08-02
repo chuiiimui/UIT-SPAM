@@ -124,7 +124,7 @@ async function main() {
   const studentRows = Array.from({ length: 100 }, (_, i) => {
     const n = i + 1;
     const uniqueId = `2102840100${String(n).padStart(3, "0")}`;
-    const biodataComplete = n > 97 ? false : true; // last 3 need biodata
+    const biodataComplete = n < 50; // 050–100 start without biodata
     const useOldBatch = n > 90 && n <= 97; // a few in older batch
     return {
       uniqueId,
@@ -149,94 +149,179 @@ async function main() {
     orderBy: { uniqueId: "asc" },
   });
 
-  const g1 = await prisma.projectGroup.create({
-    data: {
-      groupCode: "GRP-2027-001",
-      projectTitle: "Smart Campus Attendance using Computer Vision",
-      projectAbout:
+  /** 10 premade active groups (3 members each) with UIT-MAP mentors */
+  const PREMADE_GROUPS = [
+    {
+      title: "Smart Campus Attendance using Computer Vision",
+      about:
         "A camera-based attendance system that detects and recognizes student faces in classrooms, marks attendance automatically, and generates reports for faculty.",
       domain: "Computer Vision / Campus automation",
       objectives:
         "Reduce manual attendance time\nImprove accuracy of daily records\nProvide exportable attendance reports for mentors",
       techStack: "Python, OpenCV, Face recognition, Next.js, SQLite",
-      batchId: batch.id,
-      status: "active",
+      mentorName: "Dr. Amit Kumar Tiwari",
     },
-  });
-
-  const g2 = await prisma.projectGroup.create({
-    data: {
-      groupCode: "GRP-2027-002",
-      projectTitle: "AI Study Companion for Engineering Students",
-      projectAbout:
+    {
+      title: "AI Study Companion for Engineering Students",
+      about:
         "An AI helper that answers syllabus-oriented questions, suggests study plans, and tracks weekly learning goals for final-year engineering students.",
       domain: "EdTech / Generative AI",
       objectives:
         "Personalize revision plans\nAnswer subject FAQs with citations\nTrack weekly study progress",
       techStack: "Next.js, Python, LLMs, Vector search",
-      batchId: batch.id,
-      status: "active",
+      mentorName: "Mrs. Shruti Srivastava",
     },
-  });
+    {
+      title: "IoT-Based Smart Lab Equipment Tracker",
+      about:
+        "Track lab instruments with RFID/IoT tags, log check-in/out, and alert faculty when equipment is overdue.",
+      domain: "IoT / Campus operations",
+      objectives: "Reduce equipment loss\nAutomate lab inventory\nNotify supervisors of misuse",
+      techStack: "ESP32, MQTT, Node.js, React",
+      mentorName: "Mr. Shashank Dwivedi",
+    },
+    {
+      title: "Campus Placement Portal with Resume Analytics",
+      about:
+        "A placement desk for companies and students with resume scoring hints and interview scheduling.",
+      domain: "Web apps / HR tech",
+      objectives: "Centralize job drives\nHelp students improve resumes\nSimplify company shortlisting",
+      techStack: "Next.js, Prisma, NLP scoring",
+      mentorName: "Dr. Abhishek Malviya",
+    },
+    {
+      title: "Mental Wellness Chat Support for Students",
+      about:
+        "Anonymous wellness check-ins and guided resources with optional counselor escalation for campus students.",
+      domain: "HealthTech / NLP",
+      objectives: "Lower barrier to seek help\nProvide daily mood tracking\nRoute urgent cases to counselors",
+      techStack: "Flutter, Firebase, LLM moderation",
+      mentorName: "Dr. Anubhav Kumar Prasad",
+    },
+    {
+      title: "Smart Waste Segregation Monitor for Hostel Blocks",
+      about:
+        "Sensors and a dashboard that monitor waste bins and encourage proper segregation in hostels.",
+      domain: "IoT / Sustainability",
+      objectives: "Improve segregation compliance\nAlert housekeeping\nPublish weekly green scores",
+      techStack: "Arduino, LoRa, Grafana, Python",
+      mentorName: "Dr. Umesh Pandey",
+    },
+    {
+      title: "Peer Tutoring Marketplace for UIT Courses",
+      about:
+        "Match senior tutors with juniors by subject, schedule sessions, and collect feedback after each class.",
+      domain: "EdTech / Marketplace",
+      objectives: "Improve weak-subject outcomes\nReward peer tutors\nTrack session quality",
+      techStack: "Next.js, PostgreSQL, Stripe demo",
+      mentorName: "Mr. Anil Singh",
+    },
+    {
+      title: "Offline-First Notes Sync for Low Connectivity",
+      about:
+        "A notes app that works offline in hostels and syncs when campus Wi-Fi returns, with conflict resolution.",
+      domain: "Mobile / Sync systems",
+      objectives: "Support offline study\nConflict-safe sync\nShare notes within a group",
+      techStack: "React Native, SQLite, CRDTs",
+      mentorName: "Mr. Ashish Dwivedi",
+    },
+    {
+      title: "Exam Seating Arrangement Generator",
+      about:
+        "Generate clash-free exam seating charts from student rolls and room capacity with printable PDFs.",
+      domain: "Campus admin tooling",
+      objectives: "Cut manual seating effort\nAvoid roll clashes\nExport printable plans",
+      techStack: "Python, FastAPI, ReportLab, React",
+      mentorName: "Mr. Dhananjay Kumar Sharma",
+    },
+    {
+      title: "Library Book Recommendation Engine",
+      about:
+        "Recommend library titles from issue history and syllabus keywords, with faculty-curated reading lists.",
+      domain: "Recommender systems",
+      objectives: "Increase library utilization\nPersonalize reading lists\nSupport faculty book banks",
+      techStack: "Python, scikit-learn, Next.js",
+      mentorName: "Mr. Rohit Mishra",
+    },
+  ] as const;
 
-  // Put first 6 biodata-complete 2027-batch students into demo groups
-  const demo = students.slice(0, 6);
-  await prisma.student.update({
-    where: { id: demo[0].id },
-    data: { groupId: g1.id, isLeader: true },
-  });
-  await prisma.student.update({
-    where: { id: demo[1].id },
-    data: { groupId: g1.id, isLeader: false },
-  });
-  await prisma.student.update({
-    where: { id: demo[2].id },
-    data: { groupId: g1.id, isLeader: false },
-  });
-  await prisma.student.update({
-    where: { id: demo[3].id },
-    data: { groupId: g2.id, isLeader: true },
-  });
-  await prisma.student.update({
-    where: { id: demo[4].id },
-    data: { groupId: g2.id, isLeader: false },
-  });
-  await prisma.student.update({
-    where: { id: demo[5].id },
-    data: { groupId: g2.id, isLeader: false },
-  });
+  const MEMBERS_PER_GROUP = 3;
+  const needed = PREMADE_GROUPS.length * MEMBERS_PER_GROUP;
+  if (students.length < needed) {
+    throw new Error(`Need at least ${needed} biodata-complete students; found ${students.length}`);
+  }
 
-  const f1 = faculty.find((f) => f.fullName === "Dr. Amit Kumar Tiwari")!;
-  const f2 = faculty.find((f) => f.fullName === "Mrs. Shruti Srivastava")!;
+  let studentCursor = 0;
+  const createdGroups: { id: number; groupCode: string; title: string; mentor: string }[] = [];
 
-  await prisma.groupMentor.create({
-    data: { groupId: g1.id, facultyId: f1.id, isPrimary: true },
-  });
-  await prisma.groupMentor.create({
-    data: { groupId: g2.id, facultyId: f2.id, isPrimary: true },
-  });
-
-  for (let week = 1; week <= 8; week++) {
-    await prisma.weeklyEntry.create({
+  for (let i = 0; i < PREMADE_GROUPS.length; i++) {
+    const meta = PREMADE_GROUPS[i];
+    const group = await prisma.projectGroup.create({
       data: {
-        groupId: g1.id,
-        weekNumber: week,
-        summary: week === 1 ? "Setup repo, UI wireframes, and database schema." : "",
-        performance: week === 1 ? "satisfactory" : null,
-        submissionDate: week === 1 ? new Date() : null,
-        submittedById: week === 1 ? demo[0].id : null,
+        groupCode: `GRP-2027-${String(i + 1).padStart(3, "0")}`,
+        projectTitle: meta.title,
+        projectAbout: meta.about,
+        domain: meta.domain,
+        objectives: meta.objectives,
+        techStack: meta.techStack,
+        batchId: batch.id,
+        status: "active",
       },
+    });
+
+    const members = students.slice(studentCursor, studentCursor + MEMBERS_PER_GROUP);
+    studentCursor += MEMBERS_PER_GROUP;
+
+    for (let m = 0; m < members.length; m++) {
+      await prisma.student.update({
+        where: { id: members[m].id },
+        data: { groupId: group.id, isLeader: m === 0 },
+      });
+    }
+
+    const mentor =
+      faculty.find((f) => f.fullName === meta.mentorName) ?? faculty[i % faculty.length];
+    await prisma.groupMentor.create({
+      data: { groupId: group.id, facultyId: mentor.id, isPrimary: true },
+    });
+
+    for (let week = 1; week <= 8; week++) {
+      await prisma.weeklyEntry.create({
+        data: {
+          groupId: group.id,
+          weekNumber: week,
+          summary:
+            week === 1
+              ? `Week 1 kickoff for ${meta.title}: repo setup, roles assigned, and initial research.`
+              : "",
+          performance: week === 1 ? "satisfactory" : null,
+          submissionDate: week === 1 ? new Date() : null,
+          submittedById: week === 1 ? members[0].id : null,
+        },
+      });
+    }
+
+    createdGroups.push({
+      id: group.id,
+      groupCode: group.groupCode,
+      title: meta.title,
+      mentor: mentor.fullName,
     });
   }
 
   const studentCount = await prisma.student.count();
   const facultyCount = await prisma.faculty.count();
+  const groupCount = await prisma.projectGroup.count();
   const freeCount = await prisma.student.count({
     where: { biodataComplete: true, groupId: null },
   });
 
   console.log("Seeded UIT-SPAM (MAP-aligned)");
   console.log(`Faculty mentors: ${facultyCount} (copied from UIT-MAP)`);
+  console.log(`Premade active groups: ${groupCount}`);
+  for (const g of createdGroups) {
+    console.log(`  ${g.groupCode} · ${g.mentor} · ${g.title}`);
+  }
   console.log(`Students: ${studentCount} (${freeCount} free with biodata for invites)`);
   console.log("Admin: testadmin / 123456  OR  principal / password123");
   console.log("Faculty Unique Ids (password password123):");
@@ -244,7 +329,7 @@ async function main() {
     console.log(`  ${f.uniqueId}  →  ${f.fullName}`);
   }
   console.log("Students: 2102840100001 .. 2102840100100 / password123");
-  console.log("Incomplete biodata: 2102840100098 .. 2102840100100 / password123");
+  console.log("Incomplete biodata: 2102840100050 .. 2102840100100 / password123");
 }
 
 main()
